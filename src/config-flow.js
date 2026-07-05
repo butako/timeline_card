@@ -94,6 +94,7 @@ export function getConfigFormSchema() {
                         flatten: true,
                         schema: [
                             {name: "hide_current_location", selector: {boolean: {}}},
+                            {name: "hide_unselected_on_map", selector: {boolean: {}}},
                             {name: "hide_moving", selector: {boolean: {}}},
                             {name: "reverse_timeline_order", selector: {boolean: {}}},
                         ],
