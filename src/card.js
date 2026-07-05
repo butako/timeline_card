@@ -31,6 +31,7 @@ const DEFAULT_CONFIG = {
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
+    hide_unselected_on_map: false,
     hide_moving: false,
     reverse_timeline_order: false,
     collapse_timeline: false,
@@ -362,6 +363,7 @@ class TimelineCard extends HTMLElement {
                 this._activeEntityIndex,
                 (entityIndex) => this._setActiveEntityIndex(entityIndex),
                 this._config.colors,
+                this._config.hide_unselected_on_map,
             );
             this._touchStart = null;
 
@@ -540,6 +542,8 @@ class TimelineCard extends HTMLElement {
 
         return this._config.entity
             .map(({entity: entityId}, index) => {
+                if (this._config.hide_unselected_on_map && index !== this._activeEntityIndex) return null;
+
                 const state = this._hass?.states?.[entityId];
                 const lat = Number(state?.attributes?.latitude);
                 const lon = Number(state?.attributes?.longitude);
