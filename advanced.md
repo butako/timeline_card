@@ -54,7 +54,10 @@ entity:
 ### How `places_entity` resolution works
 
 1. **Per-entity override** — If a `places_entity` is specified in the entity object, it is used directly for that entity.
-2. **Top-level fallback** — If not specified per-entity, the card checks the top-level `places_entity` list and auto-matches by the `devicetracker_entityid` attribute on the Places sensor.
+2. **Top-level fallback** — If not specified per-entity, the card checks the top-level `places_entity` list and auto-matches by the `devicetracker_entityid` attribute on the Places sensor (Places v2).
+3. **Positional fallback** — Places v3 removed the `devicetracker_entityid` attribute. Sensors that cannot be matched by attribute are matched by list position, so the top-level `places_entity` list must have the same length and order as `entity`.
+
+On Places v3, the card additionally detects the `..._place_name` child sensor belonging to the configured Places sensor (via the entity registry) and uses its history for place names.
 
 This means you can mix both approaches:
 
