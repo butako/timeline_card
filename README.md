@@ -143,6 +143,14 @@ osm_api_key: me@example.com
 
 If `osm_api_key` is not set, unresolved stays remain **Unknown location**.
 
+### Places v3 compatibility
+
+Places v3 is a breaking change in the Places integration itself: attributes such as `place_name` move from the main sensor to separate child sensors (e.g. `sensor.places_alice_place_name`). The card supports both Places v2 and v3 — no configuration changes are needed:
+
+- Keep pointing `places_entity` at the **main** Places sensor. On v3, the card automatically detects and reads the `..._place_name` child sensor (enabled by default in Places v3). Pointing `places_entity` directly at the `..._place_name` sensor also works.
+- With a top-level `places_entity` list, v2 sensors are matched to trackers via their `devicetracker_entityid` attribute. That attribute no longer exists in v3, so the card falls back to matching by list position — make sure the list has the same length and order as `entity` (as was already documented).
+- History from before the v3 upgrade keeps working: for those periods the card still reads the old attributes.
+
 ## Notes
 
 - The card reads raw GPS history from the tracked entity’s latitude/longitude attributes.

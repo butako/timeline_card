@@ -34,8 +34,11 @@ export function clearReverseGeocodingQueue() {
     }
 }
 
-export function resolveStaySegments(segments, placeStates, date, osmApiKey, onUpdate) {
-    const placeIntervals = buildPlaceIntervals(placeStates, date);
+export function resolveStaySegments(segments, placeStates, placeNameStates, date, osmApiKey, onUpdate) {
+    // Intervals from the Places v3 place_name child sensor take precedence: the main
+    // sensor's state only holds the (less clean) display-options string in v3.
+    const placeNameIntervals = buildIntervals(placeNameStates, date, placeNameSensorDisplayName);
+    const placeIntervals = buildIntervals(placeStates, date, placeDisplayName);
     for (const segment of segments) {
         if (segment.type !== "stay" || segment.zoneName) continue;
         if (segment.placeName && segment.placeName !== LOADING_LOCATION) continue;
@@ -54,10 +57,11 @@ export function resolveStaySegments(segments, placeStates, date, osmApiKey, onUp
         }
 
         // Load from `places`
-        const placeName = pickPlaceName(placeIntervals, segment.start, segment.end);
+        const placeName = pickPlaceName(placeNameIntervals, segment.start, segment.end)
+            || pickPlaceName(placeIntervals, segment.start, segment.end);
         if (placeName) {
             segment.placeName = placeName;
-            segment.reverseGeocoding = {source: "places", name: placeName, intervals: placeIntervals};
+            segment.reverseGeocoding = {source: "places", name: placeName, intervals: [...placeNameIntervals, ...placeIntervals]};
             setPersistentCache(segmentKey, segment.placeName, segment.reverseGeocoding);
             continue;
         }
@@ -149,12 +153,13 @@ async function resolveQueuedRequest(request, sessionAtStart) {
     onUpdate();
 }
 
-function buildPlaceIntervals(placeStates, date) {
+function buildIntervals(states, date, displayNameFn) {
+    if (!Array.isArray(states) || states.length === 0) return [];
     const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
-    return placeStates.map((state, index) => {
-        const next = placeStates[index + 1];
+    return states.map((state, index) => {
+        const next = states[index + 1];
         const end = next ? new Date(next.lu * 1000) : endOfDay;
-        const name = placeDisplayName(state);
+        const name = displayNameFn(state);
         return {
             start: new Date(state.lu * 1000),
             end,
@@ -167,6 +172,12 @@ function placeDisplayName(state) {
     const attrs = state.a || {};
     const formatted_address = attrs.street ? `${attrs.street} ${attrs.street_number || ""}, ${attrs.city}` : null;
     return attrs.place_name || formatted_address || state.s || attrs.formatted_address || null;
+}
+
+function placeNameSensorDisplayName(state) {
+    const value = typeof state.s === "string" ? state.s.trim() : "";
+    if (!value || value === "unknown" || value === "unavailable") return null;
+    return value;
 }
 
 function pickPlaceName(intervals, start, end) {

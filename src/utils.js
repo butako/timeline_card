@@ -175,17 +175,41 @@ export function normalizeEntityEntries(config, hass = null) {
             }
         });
 
-        for (const entry of entries) {
-            if (!entry.places_entity) {
-                const fallbackPlace = topLevelPlacesMap.get(entry.entity);
-                if (fallbackPlace) {
-                    entry.places_entity = fallbackPlace;
-                }
+        const attributeMatched = new Set(topLevelPlacesMap.values());
+        entries.forEach((entry, index) => {
+            if (entry.places_entity) return;
+            const fallbackPlace = topLevelPlacesMap.get(entry.entity);
+            if (fallbackPlace) {
+                entry.places_entity = fallbackPlace;
+                return;
+            }
+            // Places v3 no longer exposes devicetracker_entityid; fall back to the
+            // documented same-length/order mapping between both lists.
+            if (placeEntityIds.length === entries.length && placeEntityIds[index] && !attributeMatched.has(placeEntityIds[index])) {
+                entry.places_entity = placeEntityIds[index];
+            }
+        });
+    }
+
+    return entries;
+}
+
+export function resolvePlaceNameEntity(hass, placeEntityId) {
+    if (!hass || !placeEntityId) return null;
+    if (placeEntityId.endsWith("_place_name")) return null;
+
+    const registry = hass.entities;
+    const deviceId = registry?.[placeEntityId]?.device_id;
+    if (deviceId) {
+        for (const [entityId, entry] of Object.entries(registry)) {
+            if (entityId !== placeEntityId && entry?.device_id === deviceId && entityId.endsWith("_place_name")) {
+                return entityId;
             }
         }
     }
 
-    return entries;
+    const conventionId = `${placeEntityId}_place_name`;
+    return hass.states?.[conventionId] ? conventionId : null;
 }
 
 export function formatErrorMessage(err) {

@@ -1,4 +1,4 @@
-import {endOfDay, haversineMeters, startOfDay, toLatLon, toPoint} from "./utils.js";
+import {endOfDay, haversineMeters, resolvePlaceNameEntity, startOfDay, toLatLon, toPoint} from "./utils.js";
 import {resolveStaySegments} from "./reverse-geocoding.js";
 import {resolveActivities} from "./activity.js";
 
@@ -276,13 +276,17 @@ export async function getSegmentedTracks(date, config, hass, onQueueUpdate) {
             const points = filterSpeedOutliers(rawPoints, config.max_reasonable_speed_kmh);
 
             const placeEntityId = entry.places_entity || null;
-            const placeStates = placeEntityId ? await fetchEntityHistory(hass, placeEntityId, date) : [];
-
+            // Places v3 moved place_name from a state attribute to a separate child sensor
+            const placeNameEntityId = resolvePlaceNameEntity(hass, placeEntityId);
             const activityEntityId = entry.activity_entity || null;
-            const activityStates = activityEntityId ? await fetchEntityHistory(hass, activityEntityId, date) : [];
+            const [placeStates, placeNameStates, activityStates] = await Promise.all([
+                placeEntityId ? fetchEntityHistory(hass, placeEntityId, date) : [],
+                placeNameEntityId ? fetchEntityHistory(hass, placeNameEntityId, date) : [],
+                activityEntityId ? fetchEntityHistory(hass, activityEntityId, date) : [],
+            ]);
 
             const baseSegments = segmentTimeline(points, config, zones);
-            resolveStaySegments(baseSegments, placeStates, date, config.osm_api_key, onQueueUpdate);
+            resolveStaySegments(baseSegments, placeStates, placeNameStates, date, config.osm_api_key, onQueueUpdate);
             const segments = resolveActivities(baseSegments, activityStates, date, config.activity_icon_map, zones);
             return {entityId, placeEntityId, activityEntityId, points, segments};
         }),
