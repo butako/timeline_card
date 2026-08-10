@@ -157,6 +157,9 @@ export function normalizeEntityEntries(config, hass = null) {
                 if (typeof item.color === "string" && item.color.trim()) {
                     entry.color = item.color.trim();
                 }
+                if (typeof item.icon === "string" && item.icon.trim()) {
+                    entry.icon = item.icon.trim();
+                }
                 return entry;
             }
             return null;
