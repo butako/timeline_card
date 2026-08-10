@@ -281,6 +281,13 @@ function createEntityIcon(location) {
         icon.src = location.picture;
         icon.alt = location.name;
         icon.setAttribute("style", "height: 42px; width: 42px; border-radius: 50%; object-fit: cover;");
+    } else if (location.icon) {
+        icon = document.createElement("ha-icon");
+        icon.setAttribute("icon", location.icon);
+        icon.setAttribute(
+            "style",
+            "height: 42px; width: 42px; display: flex; align-items: center; justify-content: center; color: white; --mdc-icon-size: 26px;",
+        );
     } else {
         const getAbbreviation = (name) => {
             const words = name.split(" ");

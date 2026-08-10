@@ -394,14 +394,16 @@ class TimelineCard extends HTMLElement {
             .map(({entity: entityId}, index) => {
                 const state = this._hass?.states?.[entityId];
                 const picture = state?.attributes?.entity_picture;
+                const entityDef = this._config.entity[index];
+                const icon = entityDef?.icon || state?.attributes?.icon || "mdi:account-circle";
                 const name = state?.attributes?.friendly_name || entityId;
                 const escapedName = escapeHtml(name);
                 const escapedPicture = escapeHtml(picture || "");
-                const entityDef = this._config.entity[index];
+                const escapedIcon = escapeHtml(icon);
                 const trackColor = getTrackColor(index, this._config?.colors, entityDef?.color);
                 return `
               <button type="button" style="--entity-track-color:${trackColor};" class="entity-chip ${index === this._activeEntityIndex ? "active" : ""}" data-action="select-entity" data-entity-index="${index}">
-                ${picture ? `<img src="${escapedPicture}" alt="${escapedName}">` : '<ha-icon class="entity-avatar-icon" icon="mdi:account-circle"></ha-icon>'}
+                ${picture ? `<img src="${escapedPicture}" alt="${escapedName}">` : `<ha-icon class="entity-avatar-icon" icon="${escapedIcon}"></ha-icon>`}
                 <span>${escapedName}</span>
               </button>
             `;
@@ -552,6 +554,7 @@ class TimelineCard extends HTMLElement {
                 return {
                     point: [lat, lon],
                     picture: state?.attributes?.entity_picture || null,
+                    icon: this._config.entity[index]?.icon || state?.attributes?.icon || null,
                     name: state?.attributes?.friendly_name || entityId,
                     color: getTrackColor(index, this._config?.colors, this._config.entity[index]?.color),
                     isActive: index === this._activeEntityIndex,
