@@ -258,6 +258,15 @@ export function clampTimelineSize(value) {
     return Math.min(90, Math.max(10, num));
 }
 
+// Must match the @container breakpoint in card.css that collapses .card.timeline-left/-right back to a stacked layout.
+export const RESPONSIVE_COLLAPSE_WIDTH_PX = 600;
+
+export function shouldFixMapHeight(timelinePosition, containerWidthPx) {
+    const isSideLayout = timelinePosition === "left" || timelinePosition === "right";
+    if (!isSideLayout) return true;
+    return containerWidthPx <= RESPONSIVE_COLLAPSE_WIDTH_PX;
+}
+
 export function getHighlightPolylineOptions(path) {
     const options = {
         color: path.color,

@@ -11,6 +11,7 @@ import {
     isToday,
     normalizeEntityEntries,
     normalizeList,
+    shouldFixMapHeight,
     startOfDay,
     today,
     toLatLon,
@@ -153,11 +154,11 @@ class TimelineCard extends HTMLElement {
     _applyMapHeight() {
         const mapElement = this.shadowRoot?.getElementById("overview-map");
         if (!mapElement) return;
-        const isSideLayout = this._config.timeline_position === "left" || this._config.timeline_position === "right";
-        if (isSideLayout) {
-            mapElement.style.removeProperty("height");
-        } else {
+        const containerWidth = this.getBoundingClientRect().width;
+        if (shouldFixMapHeight(this._config.timeline_position, containerWidth)) {
             mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+        } else {
+            mapElement.style.removeProperty("height");
         }
     }
 

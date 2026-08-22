@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {clampTimelineSize, getTimelineLayoutClass, validateLayoutConfig} from "../src/utils.js";
+import {clampTimelineSize, getTimelineLayoutClass, shouldFixMapHeight, validateLayoutConfig} from "../src/utils.js";
 
 test("getTimelineLayoutClass returns the matching class for each valid position", () => {
     assert.equal(getTimelineLayoutClass("top"), "timeline-top");
@@ -39,4 +39,19 @@ test("validateLayoutConfig throws for an invalid pills_position", () => {
 
 test("validateLayoutConfig accepts a full valid layout config", () => {
     assert.doesNotThrow(() => validateLayoutConfig({timeline_position: "right", pills_position: "above"}));
+});
+
+test("shouldFixMapHeight is always true for top/bottom regardless of width", () => {
+    assert.equal(shouldFixMapHeight("top", 1200), true);
+    assert.equal(shouldFixMapHeight("bottom", 300), true);
+});
+
+test("shouldFixMapHeight is false for left/right when wide (the two-column desktop layout)", () => {
+    assert.equal(shouldFixMapHeight("left", 1200), false);
+    assert.equal(shouldFixMapHeight("right", 601), false);
+});
+
+test("shouldFixMapHeight is true for left/right when narrow (collapsed back to stacked)", () => {
+    assert.equal(shouldFixMapHeight("left", 600), true);
+    assert.equal(shouldFixMapHeight("right", 320), true);
 });
