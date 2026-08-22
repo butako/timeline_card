@@ -49,7 +49,10 @@ test("buildStayPopupHtml renders an actual start-finish time range", () => {
 });
 
 test("buildStayPopupHtml renders no place line when the stay has no name", () => {
-    const html = buildStayPopupHtml({start: new Date("2026-08-21T09:00:00"), end: new Date("2026-08-21T10:00:00")}, null);
+    const html = buildStayPopupHtml(
+        {start: new Date("2026-08-21T09:00:00"), end: new Date("2026-08-21T10:00:00")},
+        null,
+    );
     assert.doesNotMatch(html, /timeline-popup-place/);
 });
 

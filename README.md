@@ -81,34 +81,34 @@ When multiple entities are configured, the card renders all tracks on the map an
 
 ## Configuration options
 
-| Name                        | Type     | Default      | Description                                                                                                                                                             |
-|-----------------------------|----------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `entity`                    | string[] | **required** | One or more `device_tracker`/`person` entities to pull GPS history from.                                                                                                |
-| **Reverse geocoding**       |          |              | see [Reverse Geocoding](#reverse-geocoding) below                                                                                                                       |
-| `places_entity`             | string[] | `[]`         | Optional `sensor` entity (or list) from Places integration used first for reverse geocoding. Lists must match `entity` order/count when provided.                       |
-| `osm_api_key`               | string   | `null`       | Optional OSM Nominatim email address (used as API key) for reverse geocoding fallback.                                                                                  |
-| _Advanced mode_             | yaml     |              | Reverse geocoding also supports advanced mode, see [`advanced.md`](advanced.md)                                                                                         |
-| **Detection parameters**    |          |              |                                                                                                                                                                         |
-| `stay_radius_m`             | number   | `75`         | Radius (meters) used to detect a stay.                                                                                                                                  |
-| `min_stay_minutes`          | number   | `10`         | Minimum duration (minutes) required to qualify as a stay.                                                                                                               |
-| `max_reasonable_speed_kmh`  | number   | `300`        | Maximum plausible apparent speed (km/h) between GPS points. Removes one-point GPS jumps when the direct path around that point is within the limit. Set `0` to disable. |
-| **Map display**             |          |              |                                                                                                                                                                         |
-| `distance_unit`             | string   | `"metric"`   | Distance unit for moving segments: `metric` (m, km) or `imperial` (ft, mi).                                                                                             |
-| `map_appearance`            | string   | `"auto"`     | Map appearance: `auto` (align with HA theme), `light`, or `dark`.                                                                                                       |
-| `map_height_px`             | number   | `200`        | Height of the map area in pixels.                                                                                                                                       |
+| Name                        | Type     | Default      | Description                                                                                                                                                                         |
+| --------------------------- | -------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity`                    | string[] | **required** | One or more `device_tracker`/`person` entities to pull GPS history from.                                                                                                            |
+| **Reverse geocoding**       |          |              | see [Reverse Geocoding](#reverse-geocoding) below                                                                                                                                   |
+| `places_entity`             | string[] | `[]`         | Optional `sensor` entity (or list) from Places integration used first for reverse geocoding. Lists must match `entity` order/count when provided.                                   |
+| `osm_api_key`               | string   | `null`       | Optional OSM Nominatim email address (used as API key) for reverse geocoding fallback.                                                                                              |
+| _Advanced mode_             | yaml     |              | Reverse geocoding also supports advanced mode, see [`advanced.md`](advanced.md)                                                                                                     |
+| **Detection parameters**    |          |              |                                                                                                                                                                                     |
+| `stay_radius_m`             | number   | `75`         | Radius (meters) used to detect a stay.                                                                                                                                              |
+| `min_stay_minutes`          | number   | `10`         | Minimum duration (minutes) required to qualify as a stay.                                                                                                                           |
+| `max_reasonable_speed_kmh`  | number   | `300`        | Maximum plausible apparent speed (km/h) between GPS points. Removes one-point GPS jumps when the direct path around that point is within the limit. Set `0` to disable.             |
+| **Map display**             |          |              |                                                                                                                                                                                     |
+| `distance_unit`             | string   | `"metric"`   | Distance unit for moving segments: `metric` (m, km) or `imperial` (ft, mi).                                                                                                         |
+| `map_appearance`            | string   | `"auto"`     | Map appearance: `auto` (align with HA theme), `light`, or `dark`.                                                                                                                   |
+| `map_height_px`             | number   | `200`        | Height of the map area in pixels.                                                                                                                                                   |
 | `timeline_position`         | string   | `"bottom"`   | Position of the timeline list relative to the map: `top`, `bottom`, `left`, or `right`. `left`/`right` automatically collapse to a stacked layout on narrow cards (~600px or less). |
-| `timeline_size`             | number   | `30`         | Percentage width the timeline section occupies when `timeline_position` is `left` or `right`. Ignored for `top`/`bottom`. Clamped between `10` and `90`.                  |
-| `pills_position`            | string   | `"below"`    | Position of the entity selector ("pills") row relative to the map: `above` or `below`.                                                                                    |
-| `animate_highlighted_path`  | boolean  | `true`       | Animate ("marching ants") the currently-highlighted move segment's track to show direction of travel. Automatically disabled if your OS/browser has "reduce motion" enabled. |
-| `hide_current_location`     | boolean  | `false`      | Hide the current location when viewing today.                                                                                                                           |
-| `hide_unselected_on_map`    | boolean  | `false`      | Fully hide non-selected entities' tracks/markers on the map instead of dimming them. Only the selected entity is shown.                                                 |
-| `hide_moving`               | boolean  | `false`      | Hide moving rows and keep only stays.                                                                                                                                   |
-| `reverse_timeline_order`    | boolean  | `false`      | Show timeline items from latest to earliest within the selected day.                                                                                                     |
-| `collapse_timeline`         | boolean  | `false`      | Start with the timeline section collapsed on first render.                                                                                                              |
-| `timeline_use_entity_color` | boolean  | `false`      | Use the active entity track color for the timeline spine/dots/text instead of always using HA `--primary-color`.                                                        |
-| `colors`                    | string[] | `[]`         | Optional list of per-entity track colors. When set, these colors are used in order (cycled if needed) instead of HA `--primary-color`/`--color-x` variables.            |
-| **Misc**                    |          |              |                                                                                                                                                                         |
-| `update_interval`           | number   | `300`        | How often to refresh the card (in seconds).                                                                                                                             |
+| `timeline_size`             | number   | `30`         | Percentage width the timeline section occupies when `timeline_position` is `left` or `right`. Ignored for `top`/`bottom`. Clamped between `10` and `90`.                            |
+| `pills_position`            | string   | `"below"`    | Position of the entity selector ("pills") row relative to the map: `above` or `below`.                                                                                              |
+| `animate_highlighted_path`  | boolean  | `true`       | Animate ("marching ants") the currently-highlighted move segment's track to show direction of travel. Automatically disabled if your OS/browser has "reduce motion" enabled.        |
+| `hide_current_location`     | boolean  | `false`      | Hide the current location when viewing today.                                                                                                                                       |
+| `hide_unselected_on_map`    | boolean  | `false`      | Fully hide non-selected entities' tracks/markers on the map instead of dimming them. Only the selected entity is shown.                                                             |
+| `hide_moving`               | boolean  | `false`      | Hide moving rows and keep only stays.                                                                                                                                               |
+| `reverse_timeline_order`    | boolean  | `false`      | Show timeline items from latest to earliest within the selected day.                                                                                                                |
+| `collapse_timeline`         | boolean  | `false`      | Start with the timeline section collapsed on first render.                                                                                                                          |
+| `timeline_use_entity_color` | boolean  | `false`      | Use the active entity track color for the timeline spine/dots/text instead of always using HA `--primary-color`.                                                                    |
+| `colors`                    | string[] | `[]`         | Optional list of per-entity track colors. When set, these colors are used in order (cycled if needed) instead of HA `--primary-color`/`--color-x` variables.                        |
+| **Misc**                    |          |              |                                                                                                                                                                                     |
+| `update_interval`           | number   | `300`        | How often to refresh the card (in seconds).                                                                                                                                         |
 
 ## Map interactions
 
@@ -188,7 +188,9 @@ entity:
 You can replace `entity: null` or `places_entity: null` with `entity: []`
 
 ## Debug mode
+
 In some cases for me to properly debug issues, you will need to enable debug mode and send me the logs. If this is necessary, please follow these steps:
+
 - Upgrade the card to the latest version by going to this repo in HACS, and clicking Update information.
 - Hard refresh your dashboard with `Shift+F5`
 - Go to this card's configuration, switch to yaml mode, and add the option `debug: true` as a parameter
@@ -197,5 +199,5 @@ In some cases for me to properly debug issues, you will need to enable debug mod
 - Open your Developer Tools console (Chrome: `Ctrl+Shift+J`)
 - Click the debug icon, and you should see a log be generated in the console
 - Copy that full log into a file, and send it to me privately via [email](mailto:konewka17.github@gmail.com)
-  - Note that this log will contains your coordinates for that day, I'll handle them carefully and will only use it for debugging
+    - Note that this log will contains your coordinates for that day, I'll handle them carefully and will only use it for debugging
 - Please also share your full configuration

@@ -188,7 +188,11 @@ export function normalizeEntityEntries(config, hass = null) {
             }
             // Places v3 no longer exposes devicetracker_entityid; fall back to the
             // documented same-length/order mapping between both lists.
-            if (placeEntityIds.length === entries.length && placeEntityIds[index] && !attributeMatched.has(placeEntityIds[index])) {
+            if (
+                placeEntityIds.length === entries.length &&
+                placeEntityIds[index] &&
+                !attributeMatched.has(placeEntityIds[index])
+            ) {
                 entry.places_entity = placeEntityIds[index];
             }
         });
