@@ -188,7 +188,11 @@ export function normalizeEntityEntries(config, hass = null) {
             }
             // Places v3 no longer exposes devicetracker_entityid; fall back to the
             // documented same-length/order mapping between both lists.
-            if (placeEntityIds.length === entries.length && placeEntityIds[index] && !attributeMatched.has(placeEntityIds[index])) {
+            if (
+                placeEntityIds.length === entries.length &&
+                placeEntityIds[index] &&
+                !attributeMatched.has(placeEntityIds[index])
+            ) {
                 entry.places_entity = placeEntityIds[index];
             }
         });
@@ -230,4 +234,92 @@ export function sleep(ms) {
 export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+const TIMELINE_POSITIONS = ["top", "bottom", "left", "right"];
+
+export function getTimelineLayoutClass(position) {
+    const resolved = TIMELINE_POSITIONS.includes(position) ? position : "bottom";
+    return `timeline-${resolved}`;
+}
+
+export function validateLayoutConfig(config) {
+    if (!TIMELINE_POSITIONS.includes(config.timeline_position)) {
+        throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
+    }
+    if (!["above", "below"].includes(config.pills_position)) {
+        throw new Error("pills_position must be either 'above' or 'below'");
+    }
+}
+
+export function clampTimelineSize(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 30;
+    return Math.min(90, Math.max(10, num));
+}
+
+// Must match the @container breakpoint in card.css that collapses .card.timeline-left/-right back to a stacked layout.
+export const RESPONSIVE_COLLAPSE_WIDTH_PX = 600;
+
+export function shouldFixMapHeight(timelinePosition, containerWidthPx) {
+    const isSideLayout = timelinePosition === "left" || timelinePosition === "right";
+    if (!isSideLayout) return true;
+    return containerWidthPx <= RESPONSIVE_COLLAPSE_WIDTH_PX;
+}
+
+export function getHighlightPolylineOptions(path) {
+    const options = {
+        color: path.color,
+        opacity: path.opacity ?? 1,
+        weight: path.weight,
+    };
+    if (path.animated) {
+        options.dashArray = "14, 10";
+        options.className = "timeline-marching-ants";
+    }
+    return options;
+}
+
+export function isSameCalendarDay(a, b) {
+    const dateA = a instanceof Date ? a : new Date(a);
+    const dateB = b instanceof Date ? b : new Date(b);
+    return (
+        dateA.getFullYear() === dateB.getFullYear() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getDate() === dateB.getDate()
+    );
+}
+
+export function buildStayPopupHtml(stay, locale, options = {}) {
+    const timeLabel = formatTimeRange(stay.start, stay.end, {
+        locale,
+        hideStartTime: options.hideStartTime,
+        hideEndTime: options.hideEndTime,
+    });
+    const placeLabel = escapeHtml(stay.zoneName || stay.placeName || "");
+    const dateLabel = isSameCalendarDay(stay.start, stay.end)
+        ? ""
+        : `<div class="timeline-popup-date">${escapeHtml(formatDate(stay.start, locale))} - ${escapeHtml(formatDate(stay.end, locale))}</div>`;
+
+    return `
+      <div class="timeline-popup">
+        ${placeLabel ? `<div class="timeline-popup-place">${placeLabel}</div>` : ""}
+        <div class="timeline-popup-time">${escapeHtml(timeLabel)}</div>
+        ${dateLabel}
+      </div>
+    `;
+}
+
+export function findNearestSegmentIndex(points, latlng) {
+    const target = {lat: latlng.lat, lon: latlng.lng};
+    let best = null;
+    let bestDistance = Infinity;
+    for (const entry of points) {
+        const distance = haversineMeters(target, toLatLon(entry));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = entry.segmentIndex;
+        }
+    }
+    return best;
 }

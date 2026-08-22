@@ -1,9 +1,18 @@
 {
   "type": "module",
   "module": "dist/timeline_card.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/butako/timeline_card.git"
+  },
+  "homepage": "https://github.com/butako/timeline_card#readme",
+  "bugs": {
+    "url": "https://github.com/butako/timeline_card/issues"
+  },
   "scripts": {
     "build": "rollup -c",
-    "dev": "rollup -c -w"
+    "dev": "rollup -c -w",
+    "test": "node --test"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.2",

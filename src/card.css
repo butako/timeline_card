@@ -1,5 +1,7 @@
 :host {
   display: block;
+  container-type: inline-size;
+  container-name: timeline-card;
   font-family: var(--ha-card-header-font-family, "Helvetica Neue", Arial, sans-serif);
 }
 
@@ -8,9 +10,81 @@ ha-card {
 }
 
 .card {
+  display: grid;
+  grid-template-areas: "map" "timeline";
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.card.timeline-top {
+  grid-template-areas: "timeline" "map";
+}
+
+.card.timeline-left {
+  grid-template-areas: "timeline map";
+  grid-template-columns: var(--timeline-size, 30%) 1fr;
+  grid-template-rows: 1fr;
+}
+
+.card.timeline-right {
+  grid-template-areas: "map timeline";
+  grid-template-columns: 1fr var(--timeline-size, 30%);
+  grid-template-rows: 1fr;
+}
+
+.map-pills-group {
+  grid-area: map;
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.card.timeline-left .map-pills-group,
+.card.timeline-right .map-pills-group {
   height: 100%;
+}
+
+.map-pills-group .map-wrap {
+  order: 1;
+}
+
+.map-pills-group .selector-row {
+  order: 2;
+}
+
+.map-pills-group.pills-above .map-wrap {
+  order: 2;
+}
+
+.map-pills-group.pills-above .selector-row {
+  order: 1;
+}
+
+.card.timeline-left .map-wrap,
+.card.timeline-right .map-wrap {
+  flex: 1;
+  min-height: 0;
+}
+
+@container timeline-card (max-width: 600px) {
+  .card.timeline-left,
+  .card.timeline-right {
+    grid-template-areas: "map" "timeline";
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  /*
+   * Leaflet captures single-finger touch drags for panning, so a map tall enough to fill the
+   * screen leaves no non-map area to grab and scroll the page with. Cap it well under the
+   * viewport height (independent of map_height_px) so some of the timeline is always visible
+   * as a scroll handle, on every timeline_position, not just left/right.
+   */
+  #overview-map {
+    max-height: 50vh;
+  }
 }
 
 .header {
@@ -116,6 +190,9 @@ ha-card {
 
 .timeline-section {
   display: grid;
+  grid-area: timeline;
+  min-width: 0;
+  min-height: 0;
   grid-template-rows: 1fr;
   transition:
     grid-template-rows 260ms ease,
@@ -329,6 +406,11 @@ ha-card {
   --map-filter: invert(0);
 }
 
+.card.timeline-left #overview-map,
+.card.timeline-right #overview-map {
+  height: 100%;
+}
+
 #overview-map.dark {
   background: #090909;
   --map-filter: invert(0.9) hue-rotate(170deg) brightness(1.5) contrast(1.2) saturate(0.3);
@@ -381,4 +463,46 @@ ha-card {
 .leaflet-top,
 .leaflet-bottom {
   z-index: 1 !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .timeline-marching-ants {
+    animation: timeline-marching-ants 1s linear infinite;
+  }
+}
+
+@keyframes timeline-marching-ants {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.timeline-popup-place {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #212121;
+}
+
+.timeline-popup-time {
+  color: #555555;
+}
+
+.timeline-popup-date {
+  font-size: 0.8rem;
+  color: #777777;
+}
+
+.entry.map-focus {
+  background-color: color-mix(in srgb, var(--timeline-color, var(--primary-color)) 35%, transparent);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .entry {
+    transition: background-color 1.2s ease-out;
+  }
+
+  .entry.map-focus {
+    transition: background-color 0s;
+  }
 }

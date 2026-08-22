@@ -85,6 +85,32 @@ export function getConfigFormSchema() {
                         ],
                     },
                     {
+                        type: "grid",
+                        name: "",
+                        flatten: true,
+                        schema: [
+                            {
+                                name: "timeline_position",
+                                selector: {
+                                    select: {
+                                        options: ["top", "bottom", "left", "right"],
+                                        mode: "dropdown",
+                                    },
+                                },
+                            },
+                            {
+                                name: "pills_position",
+                                selector: {
+                                    select: {options: ["above", "below"], mode: "dropdown"},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        name: "timeline_size",
+                        selector: {number: {min: 10, max: 90, step: 1, unit_of_measurement: "%", mode: "box"}},
+                    },
+                    {
                         name: "map_height_px",
                         selector: {number: {unit_of_measurement: "px"}},
                     },
@@ -106,7 +132,8 @@ export function getConfigFormSchema() {
                         schema: [
                             {name: "collapse_timeline", selector: {boolean: {}}},
                             {name: "timeline_use_entity_color", selector: {boolean: {}}},
-                        ]
+                            {name: "animate_highlighted_path", selector: {boolean: {}}},
+                        ],
                     },
                     {name: "colors", selector: {text: {multiple: true}}},
                     {

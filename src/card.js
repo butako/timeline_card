@@ -2,16 +2,20 @@ import css from "./card.css";
 import leafletCss from "leaflet/dist/leaflet.css";
 import {getSegmentedTracks} from "./segmentation.js";
 import {
+    clampTimelineSize,
     escapeHtml,
     formatDate,
     formatErrorMessage,
+    getTimelineLayoutClass,
     getTrackColor,
     isToday,
     normalizeEntityEntries,
     normalizeList,
+    shouldFixMapHeight,
     startOfDay,
     today,
     toLatLon,
+    validateLayoutConfig,
 } from "./utils.js";
 import {TimelineLeafletMap} from "./leaflet-map.js";
 import {clearPersistentCache, clearReverseGeocodingQueue} from "./reverse-geocoding.js";
@@ -28,6 +32,10 @@ const DEFAULT_CONFIG = {
     max_reasonable_speed_kmh: 300,
     map_appearance: "auto",
     map_height_px: 200,
+    timeline_position: "bottom",
+    timeline_size: 30,
+    pills_position: "below",
+    animate_highlighted_path: true,
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -54,6 +62,7 @@ class TimelineCard extends HTMLElement {
         this._activeEntityIndex = 0;
         this._timelineCollapsed = false;
         this._updateIntervalId = null;
+        this._flashTimeoutId = null;
         this._resetMapFitMode();
         this._addEventListeners();
     }
@@ -130,6 +139,7 @@ class TimelineCard extends HTMLElement {
         if (!["auto", "light", "dark"].includes(this._config.map_appearance)) {
             throw new Error("map_appearance must be one of 'auto', 'light', or 'dark'");
         }
+        validateLayoutConfig(this._config);
     }
 
     _setDarkMode() {
@@ -145,7 +155,25 @@ class TimelineCard extends HTMLElement {
     _applyMapHeight() {
         const mapElement = this.shadowRoot?.getElementById("overview-map");
         if (!mapElement) return;
-        mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+        const containerWidth = this.getBoundingClientRect().width;
+        if (shouldFixMapHeight(this._config.timeline_position, containerWidth)) {
+            mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+        } else {
+            mapElement.style.removeProperty("height");
+        }
+    }
+
+    _applyLayoutClasses() {
+        const card = this.shadowRoot?.querySelector(".card");
+        const group = this.shadowRoot?.getElementById("map-pills-group");
+        if (!card) return;
+        card.classList.remove("timeline-top", "timeline-bottom", "timeline-left", "timeline-right");
+        card.classList.add(getTimelineLayoutClass(this._config.timeline_position));
+        card.style.setProperty("--timeline-size", `${clampTimelineSize(this._config.timeline_size)}%`);
+        if (group) {
+            group.classList.toggle("pills-above", this._config.pills_position === "above");
+        }
+        requestAnimationFrame(() => this._mapView?.invalidateSize());
     }
 
     // Actions
@@ -203,6 +231,7 @@ class TimelineCard extends HTMLElement {
     _render() {
         if (!this.shadowRoot) return;
         this._ensureBaseLayout();
+        this._applyLayoutClasses();
 
         const dateKey = formatDate(this._selectedDate);
         const dayData = this._cache.get(dateKey) || {
@@ -252,18 +281,20 @@ class TimelineCard extends HTMLElement {
           <style>${css}\n${leafletCss}</style>
           <ha-card>
             <div class="card">
-              <div class="map-wrap">
-                <div id="overview-map"></div>
-                <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
-                <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-              </div>
-              <div class="selector-row" id="selector-row" hidden>
-                <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-                <div id="entity-selector" class="entity-selector"></div>
+              <div class="map-pills-group" id="map-pills-group">
+                <div class="map-wrap">
+                  <div id="overview-map"></div>
+                  <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
+                  <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                </div>
+                <div class="selector-row" id="selector-row" hidden>
+                  <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                  <div id="entity-selector" class="entity-selector"></div>
+                </div>
               </div>
               <div id="timeline-section" class="timeline-section">
                 <div class="timeline-content">
@@ -358,12 +389,15 @@ class TimelineCard extends HTMLElement {
             if (!this._config.hide_current_location) {
                 this._mapView._currentLocations = this._getCurrentEntityLocations();
             }
+            this._mapView.setLocale(this._hass?.locale);
             this._mapView.setDaySegments(
                 tracks,
                 this._activeEntityIndex,
                 (entityIndex) => this._setActiveEntityIndex(entityIndex),
                 this._config.colors,
                 this._config.hide_unselected_on_map,
+                this._config.animate_highlighted_path,
+                (segmentIndex) => this._scrollTimelineToSegment(segmentIndex),
             );
             this._touchStart = null;
 
@@ -676,6 +710,37 @@ class TimelineCard extends HTMLElement {
             if (segmentPoints.length < 2) return;
             this._mapView?.fitMap(segmentPoints.map(toLatLon));
         }
+    }
+
+    _scrollTimelineToSegment(segmentIndex) {
+        if (!Number.isInteger(segmentIndex) || segmentIndex < 0) return;
+
+        // A map click is an explicit request to look at that row, so open the list if it's collapsed.
+        if (this._timelineCollapsed) {
+            this._timelineCollapsed = false;
+            this._updateCollapseButtons();
+        }
+
+        const body = this.shadowRoot?.getElementById("timeline-body");
+        const row = body?.querySelector(`.entry[data-segment-index="${segmentIndex}"]`);
+        // No row exists when hide_moving is on and a move segment was clicked.
+        if (!body || !row) return;
+
+        // Rects, not offsetTop: .timeline is positioned, so the offsetParent chain escapes the scroll container.
+        const bodyRect = body.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const delta = rowRect.top - bodyRect.top - (bodyRect.height - rowRect.height) / 2;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        // Scroll the list itself; scrollIntoView would also scroll the page.
+        body.scrollTo({top: body.scrollTop + delta, behavior: reduceMotion ? "auto" : "smooth"});
+
+        if (this._flashTimeoutId) clearTimeout(this._flashTimeoutId);
+        this.shadowRoot.querySelectorAll(".entry.map-focus").forEach((entry) => entry.classList.remove("map-focus"));
+        row.classList.add("map-focus");
+        this._flashTimeoutId = setTimeout(() => {
+            row.classList.remove("map-focus");
+            this._flashTimeoutId = null;
+        }, 1600);
     }
 
     _bindTimelineTouch(body) {
