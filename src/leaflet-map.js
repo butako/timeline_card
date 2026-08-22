@@ -43,6 +43,10 @@ export class TimelineLeafletMap {
         this._mapElement?.classList.toggle("dark", Boolean(isDarkMode));
     }
 
+    invalidateSize() {
+        this._leafletMap.invalidateSize();
+    }
+
     destroy() {
         this._leafletMap.remove();
         this._mapLayers = [];

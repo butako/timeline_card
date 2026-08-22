@@ -1,5 +1,5 @@
-import en from "./languages/en.json";
-import nl from "./languages/nl.json";
+import en from "./languages/en.json" with {type: "json"};
+import nl from "./languages/nl.json" with {type: "json"};
 
 const languages = {en, nl};
 

@@ -231,3 +231,16 @@ export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+const TIMELINE_POSITIONS = ["top", "bottom", "left", "right"];
+
+export function getTimelineLayoutClass(position) {
+    const resolved = TIMELINE_POSITIONS.includes(position) ? position : "bottom";
+    return `timeline-${resolved}`;
+}
+
+export function validateLayoutConfig(config) {
+    if (!TIMELINE_POSITIONS.includes(config.timeline_position)) {
+        throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
+    }
+}

@@ -85,6 +85,22 @@ export function getConfigFormSchema() {
                         ],
                     },
                     {
+                        type: "grid",
+                        name: "",
+                        flatten: true,
+                        schema: [
+                            {
+                                name: "timeline_position",
+                                selector: {
+                                    select: {
+                                        options: ["top", "bottom", "left", "right"],
+                                        mode: "dropdown",
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                    {
                         name: "map_height_px",
                         selector: {number: {unit_of_measurement: "px"}},
                     },

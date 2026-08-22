@@ -5,6 +5,7 @@ import {
     escapeHtml,
     formatDate,
     formatErrorMessage,
+    getTimelineLayoutClass,
     getTrackColor,
     isToday,
     normalizeEntityEntries,
@@ -12,6 +13,7 @@ import {
     startOfDay,
     today,
     toLatLon,
+    validateLayoutConfig,
 } from "./utils.js";
 import {TimelineLeafletMap} from "./leaflet-map.js";
 import {clearPersistentCache, clearReverseGeocodingQueue} from "./reverse-geocoding.js";
@@ -28,6 +30,7 @@ const DEFAULT_CONFIG = {
     max_reasonable_speed_kmh: 300,
     map_appearance: "auto",
     map_height_px: 200,
+    timeline_position: "bottom",
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -130,6 +133,7 @@ class TimelineCard extends HTMLElement {
         if (!["auto", "light", "dark"].includes(this._config.map_appearance)) {
             throw new Error("map_appearance must be one of 'auto', 'light', or 'dark'");
         }
+        validateLayoutConfig(this._config);
     }
 
     _setDarkMode() {
@@ -145,7 +149,20 @@ class TimelineCard extends HTMLElement {
     _applyMapHeight() {
         const mapElement = this.shadowRoot?.getElementById("overview-map");
         if (!mapElement) return;
-        mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+        const isSideLayout = this._config.timeline_position === "left" || this._config.timeline_position === "right";
+        if (isSideLayout) {
+            mapElement.style.removeProperty("height");
+        } else {
+            mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+        }
+    }
+
+    _applyLayoutClasses() {
+        const card = this.shadowRoot?.querySelector(".card");
+        if (!card) return;
+        card.classList.remove("timeline-top", "timeline-bottom", "timeline-left", "timeline-right");
+        card.classList.add(getTimelineLayoutClass(this._config.timeline_position));
+        requestAnimationFrame(() => this._mapView?.invalidateSize());
     }
 
     // Actions
@@ -203,6 +220,7 @@ class TimelineCard extends HTMLElement {
     _render() {
         if (!this.shadowRoot) return;
         this._ensureBaseLayout();
+        this._applyLayoutClasses();
 
         const dateKey = formatDate(this._selectedDate);
         const dayData = this._cache.get(dateKey) || {
@@ -252,18 +270,20 @@ class TimelineCard extends HTMLElement {
           <style>${css}\n${leafletCss}</style>
           <ha-card>
             <div class="card">
-              <div class="map-wrap">
-                <div id="overview-map"></div>
-                <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
-                <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-              </div>
-              <div class="selector-row" id="selector-row" hidden>
-                <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-                <div id="entity-selector" class="entity-selector"></div>
+              <div class="map-pills-group" id="map-pills-group">
+                <div class="map-wrap">
+                  <div id="overview-map"></div>
+                  <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
+                  <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                </div>
+                <div class="selector-row" id="selector-row" hidden>
+                  <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                  <div id="entity-selector" class="entity-selector"></div>
+                </div>
               </div>
               <div id="timeline-section" class="timeline-section">
                 <div class="timeline-content">
