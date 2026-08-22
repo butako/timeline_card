@@ -1,5 +1,5 @@
 import Leaflet from "leaflet";
-import {getHighlightPolylineOptions, getTrackColor} from "./utils.js";
+import {buildStayPopupHtml, getHighlightPolylineOptions, getTrackColor} from "./utils.js";
 
 const DEFAULT_ZOOM = 13;
 
@@ -35,6 +35,7 @@ export class TimelineLeafletMap {
         this._highlightedStay = null;
         this._isTravelHighlightActive = false;
         this._animateHighlightedPath = true;
+        this._locale = null;
 
         this.setDarkMode(false);
         requestAnimationFrame(() => this._leafletMap.invalidateSize());
@@ -46,6 +47,10 @@ export class TimelineLeafletMap {
 
     invalidateSize() {
         this._leafletMap.invalidateSize();
+    }
+
+    setLocale(locale) {
+        this._locale = locale;
     }
 
     destroy() {
@@ -171,9 +176,12 @@ export class TimelineLeafletMap {
     }
 
     _drawMapMarkers(segments) {
-        const stayMarkers = Array.isArray(segments) ? segments.filter((segment) => segment?.type === "stay") : [];
+        const segmentList = Array.isArray(segments) ? segments : [];
+        const stayMarkers = segmentList
+            .map((segment, index) => ({segment, index}))
+            .filter((entry) => entry.segment?.type === "stay");
 
-        stayMarkers.forEach((stay) => {
+        stayMarkers.forEach(({segment: stay, index}) => {
             const iconName = stay.zoneIcon || "mdi:map-marker";
             const icon = createMarkerIcon({
                 iconName: iconName,
@@ -185,7 +193,14 @@ export class TimelineLeafletMap {
                 leafletIconSize: [22, 22],
             });
 
-            this._mapLayers.push(this._Leaflet.marker(stay.center, {icon, zIndexOffset: 100}));
+            const marker = this._Leaflet.marker(stay.center, {icon, zIndexOffset: 100});
+            marker.bindPopup(
+                buildStayPopupHtml(stay, this._locale, {
+                    hideStartTime: index === 0,
+                    hideEndTime: index === segmentList.length - 1,
+                }),
+            );
+            this._mapLayers.push(marker);
         });
 
         if (!this._highlightedStay) return;
@@ -200,12 +215,18 @@ export class TimelineLeafletMap {
             leafletIconSize: [26, 26],
         });
 
-        this._mapLayers.push(
-            this._Leaflet.marker(this._highlightedStay.center, {
-                icon,
-                zIndexOffset: 1000,
+        const highlightedIndex = segmentList.indexOf(this._highlightedStay);
+        const highlightedMarker = this._Leaflet.marker(this._highlightedStay.center, {
+            icon,
+            zIndexOffset: 1000,
+        });
+        highlightedMarker.bindPopup(
+            buildStayPopupHtml(this._highlightedStay, this._locale, {
+                hideStartTime: highlightedIndex === 0,
+                hideEndTime: highlightedIndex === segmentList.length - 1,
             }),
         );
+        this._mapLayers.push(highlightedMarker);
     }
 
     _drawMapLines() {

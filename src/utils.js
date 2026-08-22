@@ -266,3 +266,33 @@ export function getHighlightPolylineOptions(path) {
     }
     return options;
 }
+
+export function isSameCalendarDay(a, b) {
+    const dateA = a instanceof Date ? a : new Date(a);
+    const dateB = b instanceof Date ? b : new Date(b);
+    return (
+        dateA.getFullYear() === dateB.getFullYear() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getDate() === dateB.getDate()
+    );
+}
+
+export function buildStayPopupHtml(stay, locale, options = {}) {
+    const timeLabel = formatTimeRange(stay.start, stay.end, {
+        locale,
+        hideStartTime: options.hideStartTime,
+        hideEndTime: options.hideEndTime,
+    });
+    const placeLabel = escapeHtml(stay.zoneName || stay.placeName || "");
+    const dateLabel = isSameCalendarDay(stay.start, stay.end)
+        ? ""
+        : `<div class="timeline-popup-date">${escapeHtml(formatDate(stay.start, locale))} - ${escapeHtml(formatDate(stay.end, locale))}</div>`;
+
+    return `
+      <div class="timeline-popup">
+        ${placeLabel ? `<div class="timeline-popup-place">${placeLabel}</div>` : ""}
+        <div class="timeline-popup-time">${escapeHtml(timeLabel)}</div>
+        ${dateLabel}
+      </div>
+    `;
+}
