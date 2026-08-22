@@ -46,6 +46,22 @@ ha-card {
   height: 100%;
 }
 
+.map-pills-group .map-wrap {
+  order: 1;
+}
+
+.map-pills-group .selector-row {
+  order: 2;
+}
+
+.map-pills-group.pills-above .map-wrap {
+  order: 2;
+}
+
+.map-pills-group.pills-above .selector-row {
+  order: 1;
+}
+
 .card.timeline-left .map-wrap,
 .card.timeline-right .map-wrap {
   flex: 1;

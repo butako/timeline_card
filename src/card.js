@@ -33,6 +33,7 @@ const DEFAULT_CONFIG = {
     map_height_px: 200,
     timeline_position: "bottom",
     timeline_size: 30,
+    pills_position: "below",
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -161,10 +162,14 @@ class TimelineCard extends HTMLElement {
 
     _applyLayoutClasses() {
         const card = this.shadowRoot?.querySelector(".card");
+        const group = this.shadowRoot?.getElementById("map-pills-group");
         if (!card) return;
         card.classList.remove("timeline-top", "timeline-bottom", "timeline-left", "timeline-right");
         card.classList.add(getTimelineLayoutClass(this._config.timeline_position));
         card.style.setProperty("--timeline-size", `${clampTimelineSize(this._config.timeline_size)}%`);
+        if (group) {
+            group.classList.toggle("pills-above", this._config.pills_position === "above");
+        }
         requestAnimationFrame(() => this._mapView?.invalidateSize());
     }
 

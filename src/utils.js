@@ -243,6 +243,9 @@ export function validateLayoutConfig(config) {
     if (!TIMELINE_POSITIONS.includes(config.timeline_position)) {
         throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
     }
+    if (!["above", "below"].includes(config.pills_position)) {
+        throw new Error("pills_position must be either 'above' or 'below'");
+    }
 }
 
 export function clampTimelineSize(value) {

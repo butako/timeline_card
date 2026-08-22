@@ -98,6 +98,12 @@ export function getConfigFormSchema() {
                                     },
                                 },
                             },
+                            {
+                                name: "pills_position",
+                                selector: {
+                                    select: {options: ["above", "below"], mode: "dropdown"},
+                                },
+                            },
                         ],
                     },
                     {
