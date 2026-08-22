@@ -491,3 +491,18 @@ ha-card {
   font-size: 0.8rem;
   color: #777777;
 }
+
+.entry.map-focus {
+  background-color: color-mix(in srgb, var(--timeline-color, var(--primary-color)) 35%, transparent);
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .entry {
+    transition: background-color 1.2s ease-out;
+  }
+
+  .entry.map-focus {
+    transition: background-color 0s;
+  }
+}

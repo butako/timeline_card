@@ -62,6 +62,7 @@ class TimelineCard extends HTMLElement {
         this._activeEntityIndex = 0;
         this._timelineCollapsed = false;
         this._updateIntervalId = null;
+        this._flashTimeoutId = null;
         this._resetMapFitMode();
         this._addEventListeners();
     }
@@ -396,6 +397,7 @@ class TimelineCard extends HTMLElement {
                 this._config.colors,
                 this._config.hide_unselected_on_map,
                 this._config.animate_highlighted_path,
+                (segmentIndex) => this._scrollTimelineToSegment(segmentIndex),
             );
             this._touchStart = null;
 
@@ -708,6 +710,37 @@ class TimelineCard extends HTMLElement {
             if (segmentPoints.length < 2) return;
             this._mapView?.fitMap(segmentPoints.map(toLatLon));
         }
+    }
+
+    _scrollTimelineToSegment(segmentIndex) {
+        if (!Number.isInteger(segmentIndex) || segmentIndex < 0) return;
+
+        // A map click is an explicit request to look at that row, so open the list if it's collapsed.
+        if (this._timelineCollapsed) {
+            this._timelineCollapsed = false;
+            this._updateCollapseButtons();
+        }
+
+        const body = this.shadowRoot?.getElementById("timeline-body");
+        const row = body?.querySelector(`.entry[data-segment-index="${segmentIndex}"]`);
+        // No row exists when hide_moving is on and a move segment was clicked.
+        if (!body || !row) return;
+
+        // Rects, not offsetTop: .timeline is positioned, so the offsetParent chain escapes the scroll container.
+        const bodyRect = body.getBoundingClientRect();
+        const rowRect = row.getBoundingClientRect();
+        const delta = rowRect.top - bodyRect.top - (bodyRect.height - rowRect.height) / 2;
+        const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+        // Scroll the list itself; scrollIntoView would also scroll the page.
+        body.scrollTo({top: body.scrollTop + delta, behavior: reduceMotion ? "auto" : "smooth"});
+
+        if (this._flashTimeoutId) clearTimeout(this._flashTimeoutId);
+        this.shadowRoot.querySelectorAll(".entry.map-focus").forEach((entry) => entry.classList.remove("map-focus"));
+        row.classList.add("map-focus");
+        this._flashTimeoutId = setTimeout(() => {
+            row.classList.remove("map-focus");
+            this._flashTimeoutId = null;
+        }, 1600);
     }
 
     _bindTimelineTouch(body) {

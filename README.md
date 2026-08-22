@@ -116,6 +116,7 @@ When multiple entities are configured, the card renders all tracks on the map an
 - Whenever a **move** segment is highlighted, its track animates ("marching ants") to show direction of travel, if `animate_highlighted_path` is enabled (default). This is automatically skipped if your OS/browser has "reduce motion" enabled.
 - Click a **stay** marker directly on the map to open a popup showing the start/finish time at that location (and the date, if the stay spans more than one calendar day). Click again, or click elsewhere on the map, to close it.
 - A popup closes automatically the next time the map redraws — e.g. hovering a different timeline row, or the periodic data refresh — since the card always redraws its map layers from scratch. This is expected, not a bug.
+- Clicking a **stay** marker or the selected entity's **route line** scrolls the timeline to the matching entry and briefly flashes it, expanding the list first if collapsed. Another entity's route line still switches to that entity instead.
 
 ## Reverse Geocoding
 
