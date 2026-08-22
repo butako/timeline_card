@@ -309,3 +309,17 @@ export function buildStayPopupHtml(stay, locale, options = {}) {
       </div>
     `;
 }
+
+export function findNearestSegmentIndex(points, latlng) {
+    const target = {lat: latlng.lat, lon: latlng.lng};
+    let best = null;
+    let bestDistance = Infinity;
+    for (const entry of points) {
+        const distance = haversineMeters(target, toLatLon(entry));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = entry.segmentIndex;
+        }
+    }
+    return best;
+}

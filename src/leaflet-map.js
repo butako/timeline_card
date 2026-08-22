@@ -1,5 +1,5 @@
 import Leaflet from "leaflet";
-import {buildStayPopupHtml, getHighlightPolylineOptions, getTrackColor} from "./utils.js";
+import {buildStayPopupHtml, findNearestSegmentIndex, getHighlightPolylineOptions, getTrackColor} from "./utils.js";
 
 const DEFAULT_ZOOM = 13;
 
@@ -36,6 +36,7 @@ export class TimelineLeafletMap {
         this._isTravelHighlightActive = false;
         this._animateHighlightedPath = true;
         this._locale = null;
+        this._onSegmentClick = null;
 
         this.setDarkMode(false);
         requestAnimationFrame(() => this._leafletMap.invalidateSize());
@@ -70,21 +71,25 @@ export class TimelineLeafletMap {
         colors = [],
         hideUnselected = false,
         animateHighlightedPath = true,
+        onSegmentClick = null,
     ) {
         this._animateHighlightedPath = animateHighlightedPath;
+        this._onSegmentClick = typeof onSegmentClick === "function" ? onSegmentClick : null;
         this._fullDayPaths = tracks
             .map((track, index) => {
                 const points = [];
                 const segments = Array.isArray(track?.segments) ? track.segments : [];
-                segments.forEach((segment) => {
+                segments.forEach((segment, segmentIndex) => {
                     if (segment?.type === "stay" && segment.center) {
                         points.push({
                             point: [segment.center.lat, segment.center.lon],
                             timestamp: segment.start,
+                            segmentIndex,
                         });
                     }
                     if (segment?.type === "move" && Array.isArray(segment.points)) {
-                        points.push(...segment.points);
+                        // Copy rather than spread the originals: these are cached track data the card re-reads.
+                        segment.points.forEach((point) => points.push({...point, segmentIndex}));
                     }
                 });
 
@@ -200,6 +205,7 @@ export class TimelineLeafletMap {
                     hideEndTime: index === segmentList.length - 1,
                 }),
             );
+            marker.on("click", () => this._onSegmentClick?.(index));
             this._mapLayers.push(marker);
         });
 
@@ -226,6 +232,7 @@ export class TimelineLeafletMap {
                 hideEndTime: highlightedIndex === segmentList.length - 1,
             }),
         );
+        highlightedMarker.on("click", () => this._onSegmentClick?.(highlightedIndex));
         this._mapLayers.push(highlightedMarker);
     }
 
@@ -249,9 +256,13 @@ export class TimelineLeafletMap {
             }
 
             const line = this._Leaflet.polyline(latLngs, getHighlightPolylineOptions(path));
-            line.on("click", () => {
-                if (!Number.isInteger(path.entityIndex) || !this._onTrackClick) return;
-                this._onTrackClick(path.entityIndex);
+            line.on("click", (event) => {
+                if (!Number.isInteger(path.entityIndex)) return;
+                if (!path.isActive) {
+                    this._onTrackClick?.(path.entityIndex);
+                    return;
+                }
+                this._onSegmentClick?.(findNearestSegmentIndex(path.points, event.latlng));
             });
             this._mapLayers.push(line);
         });
