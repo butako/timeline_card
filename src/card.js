@@ -34,6 +34,7 @@ const DEFAULT_CONFIG = {
     timeline_position: "bottom",
     timeline_size: 30,
     pills_position: "below",
+    animate_highlighted_path: true,
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -392,6 +393,7 @@ class TimelineCard extends HTMLElement {
                 (entityIndex) => this._setActiveEntityIndex(entityIndex),
                 this._config.colors,
                 this._config.hide_unselected_on_map,
+                this._config.animate_highlighted_path,
             );
             this._touchStart = null;
 

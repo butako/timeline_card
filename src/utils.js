@@ -253,3 +253,16 @@ export function clampTimelineSize(value) {
     if (!Number.isFinite(num)) return 30;
     return Math.min(90, Math.max(10, num));
 }
+
+export function getHighlightPolylineOptions(path) {
+    const options = {
+        color: path.color,
+        opacity: path.opacity ?? 1,
+        weight: path.weight,
+    };
+    if (path.animated) {
+        options.dashArray = "14, 10";
+        options.className = "timeline-marching-ants";
+    }
+    return options;
+}

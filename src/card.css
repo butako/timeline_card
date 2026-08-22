@@ -454,3 +454,15 @@ ha-card {
 .leaflet-bottom {
   z-index: 1 !important;
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  .timeline-marching-ants {
+    animation: timeline-marching-ants 1s linear infinite;
+  }
+}
+
+@keyframes timeline-marching-ants {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
