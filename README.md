@@ -96,6 +96,10 @@ When multiple entities are configured, the card renders all tracks on the map an
 | `distance_unit`             | string   | `"metric"`   | Distance unit for moving segments: `metric` (m, km) or `imperial` (ft, mi).                                                                                             |
 | `map_appearance`            | string   | `"auto"`     | Map appearance: `auto` (align with HA theme), `light`, or `dark`.                                                                                                       |
 | `map_height_px`             | number   | `200`        | Height of the map area in pixels.                                                                                                                                       |
+| `timeline_position`         | string   | `"bottom"`   | Position of the timeline list relative to the map: `top`, `bottom`, `left`, or `right`. `left`/`right` automatically collapse to a stacked layout on narrow cards (~600px or less). |
+| `timeline_size`             | number   | `30`         | Percentage width the timeline section occupies when `timeline_position` is `left` or `right`. Ignored for `top`/`bottom`. Clamped between `10` and `90`.                  |
+| `pills_position`            | string   | `"below"`    | Position of the entity selector ("pills") row relative to the map: `above` or `below`.                                                                                    |
+| `animate_highlighted_path`  | boolean  | `true`       | Animate ("marching ants") the currently-highlighted move segment's track to show direction of travel. Automatically disabled if your OS/browser has "reduce motion" enabled. |
 | `hide_current_location`     | boolean  | `false`      | Hide the current location when viewing today.                                                                                                                           |
 | `hide_unselected_on_map`    | boolean  | `false`      | Fully hide non-selected entities' tracks/markers on the map instead of dimming them. Only the selected entity is shown.                                                 |
 | `hide_moving`               | boolean  | `false`      | Hide moving rows and keep only stays.                                                                                                                                   |
@@ -105,6 +109,13 @@ When multiple entities are configured, the card renders all tracks on the map an
 | `colors`                    | string[] | `[]`         | Optional list of per-entity track colors. When set, these colors are used in order (cycled if needed) instead of HA `--primary-color`/`--color-x` variables.            |
 | **Misc**                    |          |              |                                                                                                                                                                         |
 | `update_interval`           | number   | `300`        | How often to refresh the card (in seconds).                                                                                                                             |
+
+## Map interactions
+
+- Hovering a timeline entry (desktop) highlights the matching segment on the map in orange, as before. Clicking a **move** segment's timeline row triggers the same highlight (hover fires immediately before click) and additionally pans/zooms the map to fit it.
+- Whenever a **move** segment is highlighted, its track animates ("marching ants") to show direction of travel, if `animate_highlighted_path` is enabled (default). This is automatically skipped if your OS/browser has "reduce motion" enabled.
+- Click a **stay** marker directly on the map to open a popup showing the start/finish time at that location (and the date, if the stay spans more than one calendar day). Click again, or click elsewhere on the map, to close it.
+- A popup closes automatically the next time the map redraws — e.g. hovering a different timeline row, or the periodic data refresh — since the card always redraws its map layers from scratch. This is expected, not a bug.
 
 ## Reverse Geocoding
 
