@@ -2,6 +2,7 @@ import css from "./card.css";
 import leafletCss from "leaflet/dist/leaflet.css";
 import {getSegmentedTracks} from "./segmentation.js";
 import {
+    clampTimelineSize,
     escapeHtml,
     formatDate,
     formatErrorMessage,
@@ -31,6 +32,7 @@ const DEFAULT_CONFIG = {
     map_appearance: "auto",
     map_height_px: 200,
     timeline_position: "bottom",
+    timeline_size: 30,
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -162,6 +164,7 @@ class TimelineCard extends HTMLElement {
         if (!card) return;
         card.classList.remove("timeline-top", "timeline-bottom", "timeline-left", "timeline-right");
         card.classList.add(getTimelineLayoutClass(this._config.timeline_position));
+        card.style.setProperty("--timeline-size", `${clampTimelineSize(this._config.timeline_size)}%`);
         requestAnimationFrame(() => this._mapView?.invalidateSize());
     }
 

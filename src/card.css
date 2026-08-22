@@ -52,6 +52,15 @@ ha-card {
   min-height: 0;
 }
 
+@container timeline-card (max-width: 600px) {
+  .card.timeline-left,
+  .card.timeline-right {
+    grid-template-areas: "map" "timeline";
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
 .header {
   position: sticky;
   top: 0;

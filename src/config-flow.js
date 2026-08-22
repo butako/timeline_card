@@ -101,6 +101,10 @@ export function getConfigFormSchema() {
                         ],
                     },
                     {
+                        name: "timeline_size",
+                        selector: {number: {min: 10, max: 90, step: 1, unit_of_measurement: "%", mode: "box"}},
+                    },
+                    {
                         name: "map_height_px",
                         selector: {number: {unit_of_measurement: "px"}},
                     },

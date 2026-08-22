@@ -244,3 +244,9 @@ export function validateLayoutConfig(config) {
         throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
     }
 }
+
+export function clampTimelineSize(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return 30;
+    return Math.min(90, Math.max(10, num));
+}
