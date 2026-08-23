@@ -267,6 +267,16 @@ export function shouldFixMapHeight(timelinePosition, containerWidthPx) {
     return containerWidthPx <= RESPONSIVE_COLLAPSE_WIDTH_PX;
 }
 
+// HA renders the sole card of a dashboard "panel" view as: <hui-panel-view> (shadow root) >
+// <hui-card> (light DOM, no shadow root of its own) > our card. hui-card is left as an
+// unstyled `display: inline` element with no explicit height, so our own `height: 100%` chain
+// has nothing to resolve against and the card collapses to its content size instead of filling
+// the view. Detecting this exact, stable parent/grandparent pairing lets us bridge that one gap
+// imperatively (CSS alone can't reach an ancestor) without affecting any other embedding of the card.
+export function isSolePanelViewCard(parentTagName, grandparentTagName) {
+    return parentTagName === "HUI-CARD" && grandparentTagName === "HUI-PANEL-VIEW";
+}
+
 export function getHighlightPolylineOptions(path) {
     const options = {
         color: path.color,

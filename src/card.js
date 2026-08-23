@@ -8,6 +8,7 @@ import {
     formatErrorMessage,
     getTimelineLayoutClass,
     getTrackColor,
+    isSolePanelViewCard,
     isToday,
     normalizeEntityEntries,
     normalizeList,
@@ -84,6 +85,7 @@ class TimelineCard extends HTMLElement {
         this._setDarkMode();
         this._renderEntitySelector(true);
         this._applyMapHeight();
+        this._applyPanelHeight();
         if (this._hass) {
             this._ensureDay(this._selectedDate);
         }
@@ -160,6 +162,24 @@ class TimelineCard extends HTMLElement {
             mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
         } else {
             mapElement.style.removeProperty("height");
+        }
+    }
+
+    _applyPanelHeight() {
+        const card = this.shadowRoot?.querySelector(".card");
+        if (!card) return;
+        const parent = this.parentElement;
+        const grandparent = parent?.parentElement || parent?.getRootNode()?.host;
+        const isPanel = isSolePanelViewCard(parent?.tagName, grandparent?.tagName);
+        card.classList.toggle("panel-fill", isPanel);
+        if (isPanel) {
+            // `contain: size` is load-bearing: hui-view (an ancestor we can't style) is a flex item
+            // with the default `min-height: auto`, so without it a long timeline list's natural height
+            // propagates up as hui-view's minimum size and grows the whole page instead of scrolling
+            // inside the card. Size containment stops that propagation at hui-card.
+            parent.style.display = "block";
+            parent.style.height = "100%";
+            parent.style.contain = "size";
         }
     }
 
@@ -252,6 +272,7 @@ class TimelineCard extends HTMLElement {
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
         this._applyMapHeight();
+        this._applyPanelHeight();
 
         this._updateMapFitButton();
         this._updateCollapseButtons();
