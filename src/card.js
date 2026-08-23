@@ -173,8 +173,13 @@ class TimelineCard extends HTMLElement {
         const isPanel = isSolePanelViewCard(parent?.tagName, grandparent?.tagName);
         card.classList.toggle("panel-fill", isPanel);
         if (isPanel) {
+            // `contain: size` is load-bearing: hui-view (an ancestor we can't style) is a flex item
+            // with the default `min-height: auto`, so without it a long timeline list's natural height
+            // propagates up as hui-view's minimum size and grows the whole page instead of scrolling
+            // inside the card. Size containment stops that propagation at hui-card.
             parent.style.display = "block";
             parent.style.height = "100%";
+            parent.style.contain = "size";
         }
     }
 
