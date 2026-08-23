@@ -1,6 +1,12 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {clampTimelineSize, getTimelineLayoutClass, shouldFixMapHeight, validateLayoutConfig} from "../src/utils.js";
+import {
+    clampTimelineSize,
+    getTimelineLayoutClass,
+    isSolePanelViewCard,
+    shouldFixMapHeight,
+    validateLayoutConfig,
+} from "../src/utils.js";
 
 test("getTimelineLayoutClass returns the matching class for each valid position", () => {
     assert.equal(getTimelineLayoutClass("top"), "timeline-top");
@@ -54,4 +60,14 @@ test("shouldFixMapHeight is false for left/right when wide (the two-column deskt
 test("shouldFixMapHeight is true for left/right when narrow (collapsed back to stacked)", () => {
     assert.equal(shouldFixMapHeight("left", 600), true);
     assert.equal(shouldFixMapHeight("right", 320), true);
+});
+
+test("isSolePanelViewCard is true only for the exact hui-card/hui-panel-view pairing", () => {
+    assert.equal(isSolePanelViewCard("HUI-CARD", "HUI-PANEL-VIEW"), true);
+});
+
+test("isSolePanelViewCard is false for masonry/sections embeddings", () => {
+    assert.equal(isSolePanelViewCard("HUI-CARD", "HUI-MASONRY-VIEW"), false);
+    assert.equal(isSolePanelViewCard("HUI-CARD", "HUI-SECTION"), false);
+    assert.equal(isSolePanelViewCard(undefined, undefined), false);
 });
