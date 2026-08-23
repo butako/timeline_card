@@ -1,16 +1,91 @@
 :host {
   display: block;
+  height: 100%;
+  container-type: inline-size;
+  container-name: timeline-card;
   font-family: var(--ha-card-header-font-family, "Helvetica Neue", Arial, sans-serif);
 }
 
 ha-card {
+  height: 100%;
   overflow: hidden;
 }
 
 .card {
+  display: grid;
+  grid-template-areas: "map" "timeline";
+  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+/* .card above IS the timeline-bottom layout, so that class needs no rule of its own. */
+.card.timeline-top {
+  grid-template-areas: "timeline" "map";
+  grid-template-rows: 1fr auto;
+}
+
+.map-pills-group {
+  grid-area: map;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.map-pills-group .map-wrap {
+  order: 1;
+}
+
+.map-pills-group .selector-row {
+  order: 2;
+}
+
+.map-pills-group.pills-above .map-wrap {
+  order: 2;
+}
+
+.map-pills-group.pills-above .selector-row {
+  order: 1;
+}
+
+/* Two-column layouts only exist above the breakpoint; below it the stacked .card rules stand. */
+@container timeline-card (width > 600px) {
+  /* Floor the grid: the map column is a pure percentage chain, so a collapsed or empty
+     timeline column would otherwise resolve the whole card to 0 and clip its own controls. */
+  .card.timeline-left,
+  .card.timeline-right {
+    min-height: var(--map-height);
+  }
+
+  .card.timeline-left {
+    grid-template-areas: "timeline map";
+    grid-template-columns: var(--timeline-size) 1fr;
+    grid-template-rows: 1fr;
+  }
+
+  .card.timeline-right {
+    grid-template-areas: "map timeline";
+    grid-template-columns: 1fr var(--timeline-size);
+    grid-template-rows: 1fr;
+  }
+
+  .card.timeline-left .map-pills-group,
+  .card.timeline-right .map-pills-group {
+    height: 100%;
+  }
+
+  /* Fill the column instead of using the configured map height. */
+  .card.timeline-left .map-wrap,
+  .card.timeline-right .map-wrap {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .card.timeline-left #overview-map,
+  .card.timeline-right #overview-map {
+    height: 100%;
+  }
 }
 
 .header {
@@ -116,6 +191,9 @@ ha-card {
 
 .timeline-section {
   display: grid;
+  grid-area: timeline;
+  min-width: 0;
+  min-height: 0;
   grid-template-rows: 1fr;
   transition:
     grid-template-rows 260ms ease,
@@ -125,6 +203,13 @@ ha-card {
 
 .timeline-content {
   overflow: hidden;
+}
+
+/* Panel views resolve a real height on every ancestor, so drop the .body cap the grid/stack case needs. */
+.card.panel-fill .timeline-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .timeline-section.collapsed {
@@ -172,9 +257,15 @@ ha-card {
 
 .body {
   padding: 8px 16px 16px;
-  max-height: 420px;
+  max-height: var(--timeline-max-height, 420px);
   overflow: auto;
   touch-action: pan-y;
+}
+
+.card.panel-fill .body {
+  flex: 1 1 auto;
+  min-height: 0;
+  --timeline-max-height: none;
 }
 
 .loading,
@@ -325,8 +416,17 @@ ha-card {
 }
 
 #overview-map {
-  height: 200px;
+  height: var(--map-height, 200px);
   --map-filter: invert(0);
+}
+
+@container timeline-card (width <= 600px) {
+  /* Leaflet claims single-finger drags, so keep non-map area on screen to scroll the page with.
+     Scoped to the layouts this PR adds; bottom/top keep whatever map_height_px they always had. */
+  .card.timeline-left #overview-map,
+  .card.timeline-right #overview-map {
+    max-height: 50vh;
+  }
 }
 
 #overview-map.dark {
@@ -381,4 +481,54 @@ ha-card {
 .leaflet-top,
 .leaflet-bottom {
   z-index: 1 !important;
+}
+
+.timeline-marching-ants {
+  stroke-dasharray: 14 10;
+  animation: timeline-marching-ants 1s linear infinite;
+}
+
+/* -24px is the negated sum of the dash pattern above; keep the two in step.
+   Do not rewrite this as a calc() over custom properties: an unresolved calc() is not
+   interpolatable, so the dashes jump between endpoints once per cycle instead of sliding. */
+@keyframes timeline-marching-ants {
+  to {
+    stroke-dashoffset: -24px;
+  }
+}
+
+/* Leaflet draws popup chrome on a white background in both themes, so these stay dark on light
+   deliberately and are not wired to the HA theme like the rest of the card. */
+.timeline-popup-place {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #212121;
+}
+
+.timeline-popup-time {
+  color: #555555;
+}
+
+.timeline-popup-date {
+  font-size: 0.8rem;
+  color: #777777;
+}
+
+.entry.map-focus {
+  background-color: color-mix(in srgb, var(--timeline-color, var(--primary-color)) 35%, transparent);
+  border-radius: 8px;
+}
+
+/* Lets _scrollTimelineToSegment call scrollTo() without picking a behavior itself. */
+.body {
+  scroll-behavior: smooth;
+}
+
+/* MAP_FOCUS_FLASH_MS in card.js must outlast this fade. */
+.entry {
+  transition: background-color 1.2s ease-out;
+}
+
+.entry.map-focus {
+  transition: background-color 0s;
 }

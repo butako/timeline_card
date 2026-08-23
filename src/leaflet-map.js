@@ -1,5 +1,5 @@
 import Leaflet from "leaflet";
-import {getTrackColor} from "./utils.js";
+import {buildStayPopupHtml, findNearestSegmentIndex, getStayEdgeOptions, getTrackColor} from "./utils.js";
 
 const DEFAULT_ZOOM = 13;
 
@@ -34,16 +34,31 @@ export class TimelineLeafletMap {
         this._highlightedPath = [];
         this._highlightedStay = null;
         this._isTravelHighlightActive = false;
+        this._animateHighlightedPath = true;
+        this._locale = null;
+        this._onSegmentClick = null;
 
         this.setDarkMode(false);
-        requestAnimationFrame(() => this._leafletMap.invalidateSize());
+        // Re-measure on any box change: the layout breakpoint, the entity selector row and the HA
+        // sidebar all resize the map without a window resize, which is all Leaflet tracks itself.
+        this._resizeObserver = new ResizeObserver(() => this._leafletMap.invalidateSize());
+        this._resizeObserver.observe(mapElement);
     }
 
     setDarkMode(isDarkMode) {
         this._mapElement?.classList.toggle("dark", Boolean(isDarkMode));
     }
 
+    setLocale(locale) {
+        this._locale = locale;
+    }
+
+    setCurrentLocations(locations) {
+        this._currentLocations = Array.isArray(locations) ? locations : [];
+    }
+
     destroy() {
+        this._resizeObserver?.disconnect();
         this._leafletMap.remove();
         this._mapLayers = [];
         this._fullDayPath = [];
@@ -53,20 +68,39 @@ export class TimelineLeafletMap {
         this._highlightedStay = null;
     }
 
-    setDaySegments(tracks = [], activeEntityIndex = 0, onTrackClick = null, colors = [], hideUnselected = false) {
+    setDaySegments(
+        tracks = [],
+        {
+            activeEntityIndex = 0,
+            onTrackClick = null,
+            colors = [],
+            hideUnselected = false,
+            animateHighlightedPath = true,
+            onSegmentClick = null,
+        } = {},
+    ) {
+        this._animateHighlightedPath = Boolean(animateHighlightedPath);
+        this._onSegmentClick = typeof onSegmentClick === "function" ? onSegmentClick : null;
         this._fullDayPaths = tracks
             .map((track, index) => {
                 const points = [];
+                // Tag vertices in a parallel array: move points are cached track data shared with the
+                // card, and this runs again on every hover highlight.
+                const segmentIndices = [];
                 const segments = Array.isArray(track?.segments) ? track.segments : [];
-                segments.forEach((segment) => {
+                segments.forEach((segment, segmentIndex) => {
                     if (segment?.type === "stay" && segment.center) {
                         points.push({
                             point: [segment.center.lat, segment.center.lon],
                             timestamp: segment.start,
                         });
+                        segmentIndices.push(segmentIndex);
                     }
                     if (segment?.type === "move" && Array.isArray(segment.points)) {
-                        points.push(...segment.points);
+                        segment.points.forEach((point) => {
+                            points.push(point);
+                            segmentIndices.push(segmentIndex);
+                        });
                     }
                 });
 
@@ -74,6 +108,7 @@ export class TimelineLeafletMap {
                     entityIndex: index,
                     isActive: index === activeEntityIndex,
                     points,
+                    segmentIndices,
                     color: getTrackColor(index, colors),
                     opacity: index === activeEntityIndex ? 1 : 0.8,
                     weight: 4,
@@ -110,6 +145,7 @@ export class TimelineLeafletMap {
                     weight: 7,
                     opacity: 1,
                     borderWeight: 10,
+                    animated: this._animateHighlightedPath,
                 },
             ];
             this._isTravelHighlightActive = true;
@@ -157,40 +193,49 @@ export class TimelineLeafletMap {
     }
 
     _drawMapMarkers(segments) {
-        const stayMarkers = Array.isArray(segments) ? segments.filter((segment) => segment?.type === "stay") : [];
+        const segmentList = Array.isArray(segments) ? segments : [];
 
-        stayMarkers.forEach((stay) => {
-            const iconName = stay.zoneIcon || "mdi:map-marker";
-            const icon = createMarkerIcon({
-                iconName: iconName,
-                markerSize: 18,
-                iconSize: 14,
-                backgroundColor: this._activeTrackColor,
-                borderColor: `color-mix(in srgb, black 30%, ${this._activeTrackColor})`,
-                iconPadding: "2px",
-                leafletIconSize: [22, 22],
-            });
+        const pushStayMarker = (stay, index, iconOptions, zIndexOffset) => {
+            const icon = createMarkerIcon({iconName: stay.zoneIcon || "mdi:map-marker", ...iconOptions});
+            const marker = this._Leaflet.marker(stay.center, {icon, zIndexOffset});
+            // Build the popup lazily; Leaflet calls this only when the popup actually opens.
+            marker.bindPopup(() =>
+                buildStayPopupHtml(stay, this._locale, getStayEdgeOptions(stay, index, segmentList)),
+            );
+            marker.on("click", () => this._onSegmentClick?.(index));
+            this._mapLayers.push(marker);
+        };
 
-            this._mapLayers.push(this._Leaflet.marker(stay.center, {icon, zIndexOffset: 100}));
+        segmentList.forEach((stay, index) => {
+            if (stay?.type !== "stay") return;
+            pushStayMarker(
+                stay,
+                index,
+                {
+                    markerSize: 18,
+                    iconSize: 14,
+                    backgroundColor: this._activeTrackColor,
+                    borderColor: `color-mix(in srgb, black 30%, ${this._activeTrackColor})`,
+                    iconPadding: "2px",
+                    leafletIconSize: [22, 22],
+                },
+                100,
+            );
         });
 
         if (!this._highlightedStay) return;
 
-        const iconName = this._highlightedStay.zoneIcon || "mdi:map-marker";
-        const icon = createMarkerIcon({
-            iconName: iconName,
-            markerSize: 22,
-            iconSize: 22,
-            backgroundColor: "var(--accent-color)",
-            borderColor: "color-mix(in srgb, black 30%, var(--accent-color))",
-            leafletIconSize: [26, 26],
-        });
-
-        this._mapLayers.push(
-            this._Leaflet.marker(this._highlightedStay.center, {
-                icon,
-                zIndexOffset: 1000,
-            }),
+        pushStayMarker(
+            this._highlightedStay,
+            segmentList.indexOf(this._highlightedStay),
+            {
+                markerSize: 22,
+                iconSize: 22,
+                backgroundColor: "var(--accent-color)",
+                borderColor: "color-mix(in srgb, black 30%, var(--accent-color))",
+                leafletIconSize: [26, 26],
+            },
+            1000,
         );
     }
 
@@ -203,7 +248,7 @@ export class TimelineLeafletMap {
             if (!Array.isArray(path.points) || path.points.length < 2) return;
             const latLngs = path.points.map((point) => point.point);
 
-            if (path.isActive || path.entityIndex === undefined) {
+            if ((path.isActive || path.entityIndex === undefined) && !path.animated) {
                 this._mapLayers.push(
                     this._Leaflet.polyline(latLngs, {
                         color: `color-mix(in srgb, black 30%, ${path.color})`,
@@ -217,10 +262,15 @@ export class TimelineLeafletMap {
                 color: path.color,
                 opacity: path.opacity ?? 1,
                 weight: path.weight,
+                className: path.animated ? "timeline-marching-ants" : "",
             });
-            line.on("click", () => {
-                if (!Number.isInteger(path.entityIndex) || !this._onTrackClick) return;
-                this._onTrackClick(path.entityIndex);
+            line.on("click", (event) => {
+                if (!Number.isInteger(path.entityIndex)) return;
+                if (!path.isActive) {
+                    this._onTrackClick?.(path.entityIndex);
+                    return;
+                }
+                this._onSegmentClick?.(findNearestSegmentIndex(path.points, path.segmentIndices, event.latlng));
             });
             this._mapLayers.push(line);
         });

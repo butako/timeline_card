@@ -95,16 +95,28 @@ When multiple entities are configured, the card renders all tracks on the map an
 | **Map display**             |          |              |                                                                                                                                                                         |
 | `distance_unit`             | string   | `"metric"`   | Distance unit for moving segments: `metric` (m, km) or `imperial` (ft, mi).                                                                                             |
 | `map_appearance`            | string   | `"auto"`     | Map appearance: `auto` (align with HA theme), `light`, or `dark`.                                                                                                       |
-| `map_height_px`             | number   | `200`        | Height of the map area in pixels.                                                                                                                                       |
+| `map_height_px`             | number   | `200`        | Height of the map area in pixels. Ignored while `timeline_position` is `left`/`right` and showing two columns, where the map fills the available height instead.        |
+| `timeline_position`         | string   | `"bottom"`   | Position of the timeline list relative to the map: `top`, `bottom`, `left`, or `right`. `left`/`right` automatically collapse to a stacked layout on narrow cards (~600px or less).|
+| `timeline_size`             | number   | `30`         | Percentage width the timeline section occupies when `timeline_position` is `left` or `right`. Ignored for `top`/`bottom`. Clamped between `10` and `90`.                |
+| `pills_position`            | string   | `"below"`    | Position of the entity selector ("pills") row relative to the map: `above` or `below`.                                                                                  |
 | `hide_current_location`     | boolean  | `false`      | Hide the current location when viewing today.                                                                                                                           |
 | `hide_unselected_on_map`    | boolean  | `false`      | Fully hide non-selected entities' tracks/markers on the map instead of dimming them. Only the selected entity is shown.                                                 |
 | `hide_moving`               | boolean  | `false`      | Hide moving rows and keep only stays.                                                                                                                                   |
 | `reverse_timeline_order`    | boolean  | `false`      | Show timeline items from latest to earliest within the selected day.                                                                                                     |
 | `collapse_timeline`         | boolean  | `false`      | Start with the timeline section collapsed on first render.                                                                                                              |
 | `timeline_use_entity_color` | boolean  | `false`      | Use the active entity track color for the timeline spine/dots/text instead of always using HA `--primary-color`.                                                        |
+| `animate_highlighted_path`  | boolean  | `true`       | Animate ("marching ants") the currently-highlighted move segment's track to show direction of travel.                                                                   |
 | `colors`                    | string[] | `[]`         | Optional list of per-entity track colors. When set, these colors are used in order (cycled if needed) instead of HA `--primary-color`/`--color-x` variables.            |
 | **Misc**                    |          |              |                                                                                                                                                                         |
 | `update_interval`           | number   | `300`        | How often to refresh the card (in seconds).                                                                                                                             |
+
+## Map interactions
+
+- Hovering a timeline entry (desktop) highlights the matching segment on the map in orange. Clicking a **move** segment's row highlights it and pans/zooms the map to fit it.
+- A highlighted **move** segment animates ("marching ants") to show direction of travel when `animate_highlighted_path` is enabled (default).
+- Clicking a **stay** marker on the map opens a popup with the start/finish time at that location, plus the date if the stay spans more than one calendar day. Click it again, or click elsewhere on the map, to close it.
+- A popup closes whenever the map redraws, on the next hover or data refresh.
+- Clicking a **stay** marker or the selected entity's **route line** scrolls the timeline to the matching entry and briefly flashes it, expanding the list if collapsed. Clicking another entity's route line switches to that entity instead.
 
 ## Reverse Geocoding
 
