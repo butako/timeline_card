@@ -177,6 +177,23 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot.getElementById("map-pills-group")?.classList.toggle("pills-above", pills_position === "above");
     }
 
+    _applyLayoutClasses() {
+        const card = this.shadowRoot?.querySelector(".card");
+        if (!card) return;
+        const {timeline_position, timeline_size, pills_position, map_height_px} = this._config;
+        TIMELINE_POSITIONS.forEach((position) =>
+            card.classList.toggle(`timeline-${position}`, position === timeline_position),
+        );
+        card.style.setProperty("--timeline-size", `${clampTimelineSize(timeline_size)}%`);
+        // Coerce before interpolating: "nullpx" is a valid custom-property token, so it would
+        // satisfy the var() fallback and then collapse the map to 0. Number(null) is 0, so
+        // require a positive number rather than just a finite one.
+        const mapHeight = Number(map_height_px);
+        const resolvedMapHeight = mapHeight > 0 ? mapHeight : DEFAULT_CONFIG.map_height_px;
+        card.style.setProperty("--map-height", `${resolvedMapHeight}px`);
+        this.shadowRoot.getElementById("map-pills-group")?.classList.toggle("pills-above", pills_position === "above");
+    }
+
     // Actions
     _shiftDate(direction) {
         clearReverseGeocodingQueue();
