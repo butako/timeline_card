@@ -95,7 +95,9 @@ export class TimelineLeafletMap {
         this._locale = null;
 
         this.setDarkMode(false);
-        requestAnimationFrame(() => this._leafletMap.invalidateSize());
+        // Leaflet only tracks window resizes; the container query breakpoint resizes the map too.
+        this._resizeObserver = new ResizeObserver(() => this._leafletMap.invalidateSize());
+        this._resizeObserver.observe(mapElement);
     }
 
     async _setupBaseLayer() {
@@ -236,6 +238,7 @@ export class TimelineLeafletMap {
     destroy() {
         this._destroyed = true;
         this._vectorLayer = null;
+        this._resizeObserver.disconnect();
         this._leafletMap.remove();
         this._mapLayers = [];
         this._fullDayPath = [];
