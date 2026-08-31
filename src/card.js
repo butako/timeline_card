@@ -7,6 +7,7 @@ import {
     formatDate,
     formatErrorMessage,
     getTrackColor,
+    isSolePanelViewCard,
     isToday,
     normalizeEntityEntries,
     normalizeList,
@@ -160,21 +161,22 @@ class TimelineCard extends HTMLElement {
         this._mapView?.setDarkMode(darkMode);
     }
 
-    _applyLayoutClasses() {
+    _isSolePanelViewCard() {
+        const parent = this.parentElement;
+        // Panel views nest us in the light DOM, but fall back to the shadow host for other embeddings.
+        const grandparent = parent?.parentElement || parent?.getRootNode()?.host;
+        return isSolePanelViewCard(parent?.tagName, grandparent?.tagName);
+    }
+
+    _applyPanelHeight() {
         const card = this.shadowRoot?.querySelector(".card");
         if (!card) return;
-        const {timeline_position, timeline_size, pills_position, map_height_px} = this._config;
-        TIMELINE_POSITIONS.forEach((position) =>
-            card.classList.toggle(`timeline-${position}`, position === timeline_position),
-        );
-        card.style.setProperty("--timeline-size", `${clampTimelineSize(timeline_size)}%`);
-        // Coerce before interpolating: "nullpx" is a valid custom-property token, so it would
-        // satisfy the var() fallback and then collapse the map to 0. Number(null) is 0, so
-        // require a positive number rather than just a finite one.
-        const mapHeight = Number(map_height_px);
-        const resolvedMapHeight = mapHeight > 0 ? mapHeight : DEFAULT_CONFIG.map_height_px;
-        card.style.setProperty("--map-height", `${resolvedMapHeight}px`);
-        this.shadowRoot.getElementById("map-pills-group")?.classList.toggle("pills-above", pills_position === "above");
+        const isPanel = this._isSolePanelViewCard();
+        card.classList.toggle("panel-fill", isPanel);
+        if (!isPanel) return;
+        // Contain hui-card: its own parent is a flex item with min-height:auto, so an uncontained
+        // list grows the page instead of scrolling inside the card.
+        Object.assign(this.parentElement.style, {display: "block", height: "100%", contain: "size"});
     }
 
     _applyLayoutClasses() {
@@ -269,6 +271,8 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
+
+        this._applyPanelHeight();
 
         this._updateMapFitButton();
         this._updateCollapseButtons();
