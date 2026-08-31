@@ -304,3 +304,9 @@ export function clampTimelineSize(value) {
     if (!Number.isFinite(num)) return TIMELINE_SIZE.default;
     return Math.min(TIMELINE_SIZE.max, Math.max(TIMELINE_SIZE.min, num));
 }
+
+// Match only <hui-panel-view> > <hui-card> > card: hui-card is the one ancestor HA leaves without a
+// resolved height, and CSS cannot reach up to fix it.
+export function isSolePanelViewCard(parentTagName, grandparentTagName) {
+    return parentTagName === "HUI-CARD" && grandparentTagName === "HUI-PANEL-VIEW";
+}

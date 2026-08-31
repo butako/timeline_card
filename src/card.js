@@ -7,6 +7,7 @@ import {
     formatDate,
     formatErrorMessage,
     getTrackColor,
+    isSolePanelViewCard,
     isToday,
     normalizeEntityEntries,
     normalizeList,
@@ -160,6 +161,24 @@ class TimelineCard extends HTMLElement {
         this._mapView?.setDarkMode(darkMode);
     }
 
+    _isSolePanelViewCard() {
+        const parent = this.parentElement;
+        // Panel views nest us in the light DOM, but fall back to the shadow host for other embeddings.
+        const grandparent = parent?.parentElement || parent?.getRootNode()?.host;
+        return isSolePanelViewCard(parent?.tagName, grandparent?.tagName);
+    }
+
+    _applyPanelHeight() {
+        const card = this.shadowRoot?.querySelector(".card");
+        if (!card) return;
+        const isPanel = this._isSolePanelViewCard();
+        card.classList.toggle("panel-fill", isPanel);
+        if (!isPanel) return;
+        // Contain hui-card: its own parent is a flex item with min-height:auto, so an uncontained
+        // list grows the page instead of scrolling inside the card.
+        Object.assign(this.parentElement.style, {display: "block", height: "100%", contain: "size"});
+    }
+
     _applyLayoutClasses() {
         const card = this.shadowRoot?.querySelector(".card");
         if (!card) return;
@@ -252,6 +271,8 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
+
+        this._applyPanelHeight();
 
         this._updateMapFitButton();
         this._updateCollapseButtons();
