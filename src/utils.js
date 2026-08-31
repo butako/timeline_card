@@ -188,7 +188,11 @@ export function normalizeEntityEntries(config, hass = null) {
             }
             // Places v3 no longer exposes devicetracker_entityid; fall back to the
             // documented same-length/order mapping between both lists.
-            if (placeEntityIds.length === entries.length && placeEntityIds[index] && !attributeMatched.has(placeEntityIds[index])) {
+            if (
+                placeEntityIds.length === entries.length &&
+                placeEntityIds[index] &&
+                !attributeMatched.has(placeEntityIds[index])
+            ) {
                 entry.places_entity = placeEntityIds[index];
             }
         });
@@ -230,4 +234,83 @@ export function sleep(ms) {
 export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+export const TIMELINE_POSITIONS = ["top", "bottom", "left", "right"];
+export const PILLS_POSITIONS = ["above", "below"];
+export const TIMELINE_SIZE = {min: 10, max: 90, default: 30};
+
+export function validateLayoutConfig(config) {
+    if (!TIMELINE_POSITIONS.includes(config.timeline_position)) {
+        throw new Error(`timeline_position must be one of ${TIMELINE_POSITIONS.join(", ")}`);
+    }
+    if (!PILLS_POSITIONS.includes(config.pills_position)) {
+        throw new Error(`pills_position must be one of ${PILLS_POSITIONS.join(", ")}`);
+    }
+}
+
+export function clampTimelineSize(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return TIMELINE_SIZE.default;
+    return Math.min(TIMELINE_SIZE.max, Math.max(TIMELINE_SIZE.min, num));
+}
+
+// Match only <hui-panel-view> > <hui-card> > card: hui-card is the one ancestor HA leaves without a
+// resolved height, and CSS cannot reach up to fix it.
+export function isSolePanelViewCard(parentTagName, grandparentTagName) {
+    return parentTagName === "HUI-CARD" && grandparentTagName === "HUI-PANEL-VIEW";
+}
+
+export function isSameCalendarDay(a, b) {
+    const dateA = a instanceof Date ? a : new Date(a);
+    const dateB = b instanceof Date ? b : new Date(b);
+    return startOfDay(dateA).getTime() === startOfDay(dateB).getTime();
+}
+
+// One label rule for the timeline row and the map popup, so the same stay never reads two ways.
+export function getStayLabel(stay) {
+    return escapeHtml(stay?.zoneName || stay?.placeName || localize("timeline.unknown_location"));
+}
+
+// The day's first and last stay run past the day boundary, so their outer time is unknown.
+export function getStayEdgeOptions(segment, index, segments) {
+    const isStay = segment?.type === "stay";
+    return {
+        hideStartTime: isStay && index === 0,
+        hideEndTime: isStay && index === segments.length - 1,
+    };
+}
+
+export function buildStayPopupHtml(stay, locale, options = {}) {
+    const timeLabel = formatTimeRange(stay.start, stay.end, {
+        locale,
+        hideStartTime: options.hideStartTime,
+        hideEndTime: options.hideEndTime,
+    });
+    const placeLabel = getStayLabel(stay);
+    const dateLabel = isSameCalendarDay(stay.start, stay.end)
+        ? ""
+        : `<div class="timeline-popup-date">${escapeHtml(formatDate(stay.start, locale))} - ${escapeHtml(formatDate(stay.end, locale))}</div>`;
+
+    return `
+      <div class="timeline-popup">
+        <div class="timeline-popup-place">${placeLabel}</div>
+        <div class="timeline-popup-time">${escapeHtml(timeLabel)}</div>
+        ${dateLabel}
+      </div>
+    `;
+}
+
+export function findNearestSegmentIndex(points, segmentIndices, latlng) {
+    const target = {lat: latlng.lat, lon: latlng.lng};
+    let best = null;
+    let bestDistance = Infinity;
+    points.forEach((entry, i) => {
+        const distance = haversineMeters(target, toLatLon(entry));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = segmentIndices[i];
+        }
+    });
+    return best;
 }
