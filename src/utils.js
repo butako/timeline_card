@@ -310,3 +310,16 @@ export function clampTimelineSize(value) {
 export function isSolePanelViewCard(parentTagName, grandparentTagName) {
     return parentTagName === "HUI-CARD" && grandparentTagName === "HUI-PANEL-VIEW";
 }
+
+// Touch devices fire no mouseover/mouseout, so a tap has to pin the highlight that a mouse gets
+// for free from hover -- without this the marching ants can never appear on mobile. Tapping the
+// pinned segment again clears it, so a tap is a toggle.
+export function nextPinnedSegmentIndex(pinnedIndex, tappedIndex) {
+    if (!Number.isInteger(tappedIndex)) return pinnedIndex;
+    return pinnedIndex === tappedIndex ? null : tappedIndex;
+}
+
+// A live hover always wins, so a mouse user still gets a transient preview over the pin.
+export function resolveHighlightIndex(pinnedIndex, hoveredIndex) {
+    return Number.isInteger(hoveredIndex) ? hoveredIndex : pinnedIndex;
+}

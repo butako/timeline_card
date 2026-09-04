@@ -9,8 +9,10 @@ import {
     getTrackColor,
     isSolePanelViewCard,
     isToday,
+    nextPinnedSegmentIndex,
     normalizeEntityEntries,
     normalizeList,
+    resolveHighlightIndex,
     startOfDay,
     TIMELINE_POSITIONS,
     TIMELINE_SIZE,
@@ -64,6 +66,8 @@ class TimelineCard extends HTMLElement {
         this._rendered = false;
         this._touchStart = null;
         this._activeEntityIndex = 0;
+        this._pinnedSegmentIndex = null;
+        this._hoveredSegmentIndex = null;
         this._timelineCollapsed = false;
         this._updateIntervalId = null;
         this._flashTimeoutId = null;
@@ -208,6 +212,7 @@ class TimelineCard extends HTMLElement {
         const next = new Date(this._selectedDate);
         next.setDate(next.getDate() + direction);
         this._selectedDate = startOfDay(next);
+        this._clearPinnedSegment();
         this._resetMapFitMode();
         this._ensureDay(this._selectedDate).then(() => this._render());
     }
@@ -561,6 +566,7 @@ class TimelineCard extends HTMLElement {
             return;
         }
         this._activeEntityIndex = index;
+        this._clearPinnedSegment();
         this._renderEntitySelector(true);
         this._render();
     }
@@ -664,6 +670,7 @@ class TimelineCard extends HTMLElement {
             const next = new Date(`${target.value}T00:00:00`);
             if (!Number.isNaN(next.getTime())) {
                 this._selectedDate = startOfDay(next);
+                this._clearPinnedSegment();
                 this._resetMapFitMode();
                 this._ensureDay(this._selectedDate).then(() => this._render());
             }
@@ -689,25 +696,37 @@ class TimelineCard extends HTMLElement {
 
     _handleSegmentHoverStart(segmentIndex) {
         if (!Number.isInteger(segmentIndex)) return;
-        const dayData = this._getCurrentDayData();
-        const track = this._getCurrentTrackDayData(dayData);
-        if (!track || !Array.isArray(track.segments)) return;
-
-        const segment = track.segments[segmentIndex];
-        if (!segment || !this._mapView) return;
-
-        const segments = Array.isArray(track.segments) ? track.segments : [];
-        this._touchStart = null;
-        this._mapView.highlightSegment(segment, segments);
+        this._hoveredSegmentIndex = segmentIndex;
+        this._applySegmentHighlight();
     }
 
     _clearHoverHighlight() {
+        this._hoveredSegmentIndex = null;
+        this._applySegmentHighlight();
+    }
+
+    // Single owner of the map highlight: a live hover wins, otherwise the tapped (pinned) segment
+    // stays lit. Touch fires no mouseover/mouseout, so the pin is the only way the marching ants
+    // ever appear on mobile.
+    _applySegmentHighlight() {
         if (!this._mapView) return;
         const dayData = this._getCurrentDayData();
         const track = this._getCurrentTrackDayData(dayData);
         const segments = Array.isArray(track?.segments) ? track.segments : [];
+
         this._touchStart = null;
-        this._mapView.clearHighlight(segments);
+        const index = resolveHighlightIndex(this._pinnedSegmentIndex, this._hoveredSegmentIndex);
+        const segment = Number.isInteger(index) ? segments[index] : null;
+        if (segment) {
+            this._mapView.highlightSegment(segment, segments);
+        } else {
+            this._mapView.clearHighlight(segments);
+        }
+    }
+
+    _clearPinnedSegment() {
+        this._pinnedSegmentIndex = null;
+        this._hoveredSegmentIndex = null;
     }
 
     _handleSegmentClick(segmentIndex) {
@@ -718,6 +737,18 @@ class TimelineCard extends HTMLElement {
 
         const segment = track.segments[segmentIndex];
         if (!segment) return;
+
+        // A tap is a toggle, and it also stands in for the hover a touch device never sends.
+        this._pinnedSegmentIndex = nextPinnedSegmentIndex(this._pinnedSegmentIndex, segmentIndex);
+        this._hoveredSegmentIndex = null;
+        this._applySegmentHighlight();
+
+        if (!Number.isInteger(this._pinnedSegmentIndex)) {
+            this._resetMapFitMode();
+            this._updateMapFitButton();
+            this._fitMapToCurrentMode();
+            return;
+        }
 
         this._mapFitMode = "segment";
         this._updateMapFitButton();
