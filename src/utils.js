@@ -186,8 +186,7 @@ export function normalizeEntityEntries(config, hass = null) {
                 entry.places_entity = fallbackPlace;
                 return;
             }
-            // Places v3 no longer exposes devicetracker_entityid; fall back to the
-            // documented same-length/order mapping between both lists.
+            // Places v3 exposes no devicetracker_entityid.
             if (placeEntityIds.length === entries.length && placeEntityIds[index] && !attributeMatched.has(placeEntityIds[index])) {
                 entry.places_entity = placeEntityIds[index];
             }
