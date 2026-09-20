@@ -378,7 +378,7 @@ export class TimelineLeafletMap {
             if (!Array.isArray(path.points) || path.points.length < 2) return;
             const latLngs = path.points.map((point) => point.point);
 
-            if ((path.isActive || path.entityIndex === undefined) && !path.animated) {
+            if ((path.isActive || path.entityIndex === undefined)) {
                 this._mapLayers.push(
                     this._Leaflet.polyline(latLngs, {
                         color: `color-mix(in srgb, black 30%, ${path.color})`,
