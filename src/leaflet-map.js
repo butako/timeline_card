@@ -1,10 +1,46 @@
 import Leaflet from "leaflet";
+import {maplibreGL} from "@maplibre/maplibre-gl-leaflet";
 import {getTrackColor} from "./utils.js";
 
 const DEFAULT_ZOOM = 13;
+const MAP_MIN_ZOOM = 1;
+const MAP_MAX_ZOOM = 20;
+
+// Served by Home Assistant 2026.9+; older installs fall back to raster tiles.
+const VECTOR_STYLES = {
+    light: "/static/map/light.json",
+    dark: "/static/map/dark.json",
+};
+
+let webGL2Supported;
+
+function supportsWebGL2() {
+    if (webGL2Supported === undefined) {
+        try {
+            const context = document.createElement("canvas").getContext("webgl2");
+            webGL2Supported = Boolean(context);
+            context?.getExtension("WEBGL_lose_context")?.loseContext();
+        } catch {
+            webGL2Supported = false;
+        }
+    }
+    return webGL2Supported;
+}
+
+async function loadMapStyle(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Map style ${url} unavailable (${response.status})`);
+    const style = await response.json();
+    if (typeof style.sprite === "string") {
+        style.sprite = new URL(style.sprite, location.href).href;
+    } else if (Array.isArray(style.sprite)) {
+        style.sprite = style.sprite.map((sprite) => ({...sprite, url: new URL(sprite.url, location.href).href}));
+    }
+    return style;
+}
 
 export class TimelineLeafletMap {
-    constructor(mapElement, homeZoneCenter = null) {
+    constructor(mapElement, homeZoneCenter = null, options = {}) {
         if (!mapElement?.isConnected) {
             throw new Error("Cannot setup Leaflet map on disconnected element");
         }
@@ -12,18 +48,28 @@ export class TimelineLeafletMap {
         this._Leaflet = Leaflet;
         this._mapElement = mapElement;
         this._homeZoneCenter = homeZoneCenter;
-        this._leafletMap = Leaflet.map(mapElement, {zoomControl: true});
+        this._leafletMap = Leaflet.map(mapElement, {zoomControl: true, minZoom: MAP_MIN_ZOOM, maxZoom: MAP_MAX_ZOOM});
 
-        const attribution =
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>';
-        const tileLayer = Leaflet.tileLayer(`https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png`, {
-            attribution,
-            subdomains: "abcd",
-            minZoom: 0,
-            maxZoom: 20,
-            referrerPolicy: "no-referrer-when-downgrade",
-        });
-        tileLayer.addTo(this._leafletMap);
+        this._rasterTileUrl = options.mapTileUrl || "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+        this._rasterAttribution = options.mapAttribution
+            || (options.mapTileUrl
+                ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                : `&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, &copy; <a href="https://carto.com/attributions">CARTO</a>`);
+        this._vectorLayer = null;
+        this._fetchTilesToken = options.fetchMapTilesToken;
+        this._tilesToken = undefined;
+        this._tokenInterval = undefined;
+        this._destroyed = false;
+        this._darkMode = false;
+        this._styleRequest = 0;
+        this._appliedDarkMode = false;
+        this._contextLost = false;
+        this._fallbackTimeout = undefined;
+        this._handleVisibilityChange = () => {
+            if (this._contextLost) this._scheduleRasterFallback();
+        };
+        // Deferred so the caller's setDarkMode() lands before the style is picked.
+        Promise.resolve().then(() => this._setupBaseLayer());
 
         if (this._homeZoneCenter) this._leafletMap.setView(this._homeZoneCenter, DEFAULT_ZOOM);
 
@@ -34,16 +80,134 @@ export class TimelineLeafletMap {
         this._highlightedPath = [];
         this._highlightedStay = null;
         this._isTravelHighlightActive = false;
+        this._animateHighlightedPath = true;
 
         this.setDarkMode(false);
         requestAnimationFrame(() => this._leafletMap.invalidateSize());
     }
 
+    async _setupBaseLayer() {
+        if (this._destroyed) return;
+        if (supportsWebGL2() && (await this._createVectorLayer())) return;
+        this._createRasterLayer();
+    }
+
+    async _refreshTilesToken() {
+        try {
+            this._tilesToken = await this._fetchTilesToken();
+        } catch {
+            // Older Home Assistant has no tile proxy.
+        }
+    }
+
+    // HA's tile proxy rejects requests without the token; the worker needs absolute URLs.
+    _transformRequest(url) {
+        const parsed = new URL(url, location.href);
+        if (this._tilesToken && parsed.pathname.startsWith("/api/map_tiles/")) {
+            parsed.searchParams.set("token", this._tilesToken);
+        }
+        return {url: parsed.href};
+    }
+
+    async _createVectorLayer() {
+        let layer;
+        try {
+            const [style] = await Promise.all([
+                loadMapStyle(VECTOR_STYLES[this._darkMode ? "dark" : "light"]),
+                this._refreshTilesToken(),
+            ]);
+            if (this._destroyed) return false;
+            layer = maplibreGL({
+                style,
+                localIdeographFontFamily: "sans-serif",
+                transformRequest: (url) => this._transformRequest(url),
+            });
+            // The adapter builds the MapLibre map in `onAdd`, which throws on a refused context.
+            layer.addTo(this._leafletMap);
+        } catch {
+            try {
+                layer?.remove();
+            } catch {
+                // May never have finished being added.
+            }
+            return false;
+        }
+
+        this._vectorLayer = layer;
+        this._appliedDarkMode = this._darkMode;
+        this._mapElement?.classList.remove("raster-tiles");
+
+        const glMap = layer.getMaplibreMap();
+        glMap.on("webglcontextlost", () => {
+            this._contextLost = true;
+            this._scheduleRasterFallback();
+        });
+        glMap.on("webglcontextrestored", () => {
+            this._contextLost = false;
+            clearTimeout(this._fallbackTimeout);
+        });
+        document.addEventListener("visibilitychange", this._handleVisibilityChange);
+        this._tokenInterval = setInterval(() => this._refreshTilesToken(), 20 * 60 * 1000);
+        this._lafletMap.on("unload", () => {
+            clearTimeout(this._fallbackTimeout);
+            clearInterval(this._tokenInterval);
+            document.removeEventListener("visibilitychange", this._handleVisibilityChange);
+        });
+        return true;
+    }
+
+    _createRasterLayer() {
+        if (this._destroyed) return;
+        this._mapElement?.classList.add("raster-tiles");
+        Leaflet.tileLayer(this._rasterTileUrl, {
+            attribution: this._rasterAttribution,
+            subdomains: "abcd",
+            minZoom: MAP_MIN_ZOOM,
+            maxZoom: MAP_MAX_ZOOM,
+            referrerPolicy: "no-referrer-when-downgrade",
+        }).addTo(this._leafletMap);
+    }
+
+    _scheduleRasterFallback() {
+        clearTimeout(this._fallbackTimeout);
+        if (!this._vectorLayer || document.hidden) return;
+        this._fallbackTimeout = setTimeout(() => this._swapToRaster(), 2000);
+    }
+
+    _swapToRaster() {
+        const layer = this._vectorLayer;
+        this._vectorLayer = null;
+        document.removeEventListener("visibilitychange", this._handleVisibilityChange);
+        try {
+            layer.remove();
+        } catch {
+            // Already detached.
+        }
+        this._createRasterLayer();
+        this._mapElement?.classList.toggle("dark", this._darkMode);
+    }
+
     setDarkMode(isDarkMode) {
-        this._mapElement?.classList.toggle("dark", Boolean(isDarkMode));
+        const darkMode = Boolean(isDarkMode);
+        this._darkMode = darkMode;
+        this._mapElement?.classList.toggle("dark", darkMode);
+        if (!this._vectorLayer || darkMode === this._appliedDarkMode) return;
+
+        const request = ++this._styleRequest;
+        loadMapStyle(VECTOR_STYLES[darkMode ? "dark" : "light"])
+            .then((style) => {
+                if (request !== this._styleRequest || !this._vectorLayer) return;
+                this._appliedDarkMode = darkMode;
+                this._vectorLayer.getMaplibreMap()?.setStyle(style);
+            })
+            .catch(() => {
+                // Keep the current style.
+            });
     }
 
     destroy() {
+        this._destroyed = true;
+        this._vectorLayer = null;
         this._leafletMap.remove();
         this._mapLayers = [];
         this._fullDayPath = [];
@@ -53,7 +217,17 @@ export class TimelineLeafletMap {
         this._highlightedStay = null;
     }
 
-    setDaySegments(tracks = [], activeEntityIndex = 0, onTrackClick = null, colors = [], hideUnselected = false) {
+    setDaySegments(
+        tracks = [],
+        {
+            activeEntityIndex = 0,
+            onTrackClick = null,
+            colors = [],
+            hideUnselected = false,
+            animateHighlightedPath = true,
+        } = {},
+    ) {
+        this._animateHighlightedPath = Boolean(animateHighlightedPath);
         this._fullDayPaths = tracks
             .map((track, index) => {
                 const points = [];
@@ -110,6 +284,7 @@ export class TimelineLeafletMap {
                     weight: 7,
                     opacity: 1,
                     borderWeight: 10,
+                    animated: this._animateHighlightedPath,
                 },
             ];
             this._isTravelHighlightActive = true;
@@ -203,7 +378,7 @@ export class TimelineLeafletMap {
             if (!Array.isArray(path.points) || path.points.length < 2) return;
             const latLngs = path.points.map((point) => point.point);
 
-            if (path.isActive || path.entityIndex === undefined) {
+            if ((path.isActive || path.entityIndex === undefined)) {
                 this._mapLayers.push(
                     this._Leaflet.polyline(latLngs, {
                         color: `color-mix(in srgb, black 30%, ${path.color})`,
@@ -217,6 +392,7 @@ export class TimelineLeafletMap {
                 color: path.color,
                 opacity: path.opacity ?? 1,
                 weight: path.weight,
+                className: path.animated ? "timeline-marching-ants" : "",
             });
             line.on("click", () => {
                 if (!Number.isInteger(path.entityIndex) || !this._onTrackClick) return;

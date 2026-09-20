@@ -1,5 +1,6 @@
 import css from "./card.css";
 import leafletCss from "leaflet/dist/leaflet.css";
+import maplibreCss from "maplibre-gl/dist/maplibre-gl.css";
 import {getSegmentedTracks} from "./segmentation.js";
 import {
     escapeHtml,
@@ -28,6 +29,9 @@ const DEFAULT_CONFIG = {
     max_reasonable_speed_kmh: 300,
     map_appearance: "auto",
     map_height_px: 200,
+    animate_highlighted_path: true,
+    map_tile_url: null,
+    map_attribution: null,
     distance_unit: "metric",
     colors: [],
     hide_current_location: false,
@@ -54,6 +58,7 @@ class TimelineCard extends HTMLElement {
         this._activeEntityIndex = 0;
         this._timelineCollapsed = false;
         this._updateIntervalId = null;
+        this._teardownTimeout = null;
         this._resetMapFitMode();
         this._addEventListeners();
     }
@@ -110,11 +115,30 @@ class TimelineCard extends HTMLElement {
     }
 
     // noinspection JSUnusedGlobalSymbols
+    connectedCallback() {
+        clearTimeout(this._teardownTimeout);
+        this._teardownTimeout = null;
+        if (!this._config) return;
+        this._setupUpdateInterval();
+        // The first render attaches the initial map.
+        if (this._rendered && !this._mapView) this._attachMapCard();
+    }
+
+    // noinspection JSUnusedGlobalSymbols
     disconnectedCallback() {
         if (this._updateIntervalId) {
             clearInterval(this._updateIntervalId);
             this._updateIntervalId = null;
         }
+
+        // Deferred: a DOM move is a disconnect immediately followed by a reconnect.
+        clearTimeout(this._teardownTimeout);
+        this._teardownTimeout = setTimeout(() => {
+            this._teardownTimeout = null;
+            if (this.isConnected) return;
+            this._mapView?.destroy();
+            this._mapView = null;
+        }, 0);
     }
 
     _checkConfig() {
@@ -249,7 +273,7 @@ class TimelineCard extends HTMLElement {
         this._baseLayoutReady = true;
 
         this.shadowRoot.innerHTML = `
-          <style>${css}\n${leafletCss}</style>
+          <style>${css}\n${leafletCss}\n${maplibreCss}</style>
           <ha-card>
             <div class="card">
               <div class="map-wrap">
@@ -339,7 +363,12 @@ class TimelineCard extends HTMLElement {
 
         this._isLoadingMap = true;
         try {
-            this._mapView = new TimelineLeafletMap(container, this._getHomeZoneCenter());
+            this._mapView = new TimelineLeafletMap(container, this._getHomeZoneCenter(), {
+                mapTileUrl: this._config.map_tile_url,
+                mapAttribution: this._config.map_attribution,
+                fetchMapTilesToken: async () =>
+                    (await this._hass.connection.sendMessagePromise({type: "map_tiles/access_token"})).token,
+            });
             this._setDarkMode();
             this._drawMapPaths();
         } catch (err) {
@@ -358,13 +387,13 @@ class TimelineCard extends HTMLElement {
             if (!this._config.hide_current_location) {
                 this._mapView._currentLocations = this._getCurrentEntityLocations();
             }
-            this._mapView.setDaySegments(
-                tracks,
-                this._activeEntityIndex,
-                (entityIndex) => this._setActiveEntityIndex(entityIndex),
-                this._config.colors,
-                this._config.hide_unselected_on_map,
-            );
+            this._mapView.setDaySegments(tracks, {
+                activeEntityIndex: this._activeEntityIndex,
+                onTrackClick: (entityIndex) => this._setActiveEntityIndex(entityIndex),
+                colors: this._config.colors,
+                hideUnselected: this._config.hide_unselected_on_map,
+                animateHighlightedPath: this._config.animate_highlighted_path,
+            });
             this._touchStart = null;
 
             this._updateMapFitButton();
