@@ -70,6 +70,9 @@ export class TimelineLeafletMap {
         this._rasterAttribution = options.mapAttribution
             || (options.mapTileUrl ? OSM_ATTRIBUTION : CARTO_ATTRIBUTION);
         this._vectorLayer = null;
+        this._fetchTilesToken = options.fetchMapTilesToken;
+        this._tilesToken = undefined;
+        this._tokenInterval = undefined;
         this._destroyed = false;
         this._darkMode = false;
         this._styleRequest = 0;
@@ -102,12 +105,38 @@ export class TimelineLeafletMap {
         this._createRasterLayer();
     }
 
+    async _refreshTilesToken() {
+        try {
+            this._tilesToken = await this._fetchTilesToken();
+        } catch {
+            // Older Home Assistant has no tile proxy.
+        }
+    }
+
+    // HA's tile proxy rejects requests without the token; the worker needs absolute URLs.
+    _transformRequest(url) {
+        const parsed = new URL(url, location.href);
+        if (this._tilesToken && parsed.pathname.startsWith("/api/map_tiles/")) {
+            parsed.searchParams.set("token", this._tilesToken);
+        }
+        return {url: parsed.href};
+    }
+
     async _createVectorLayer() {
         let layer;
         try {
-            const style = await loadMapStyle(VECTOR_STYLES[this._darkMode ? "dark" : "light"]);
+            const [style] = await Promise.all([
+                loadMapStyle(VECTOR_STYLES[this._darkMode ? "dark" : "light"]),
+                this._refreshTilesToken(),
+            ]);
             if (this._destroyed) return false;
-            layer = maplibreGL({style, localIdeographFontFamily: "sans-serif"});
+            // The token rotates every 30 minutes.
+            this._tokenInterval ??= setInterval(() => this._refreshTilesToken(), 20 * 60 * 1000);
+            layer = maplibreGL({
+                style,
+                localIdeographFontFamily: "sans-serif",
+                transformRequest: (url) => this._transformRequest(url),
+            });
             // The adapter builds the MapLibre map in `onAdd`, so a refused context or a
             // blocked worker throws here — inside the guard, or raster is never reached.
             layer.addTo(this._leafletMap);
@@ -134,10 +163,6 @@ export class TimelineLeafletMap {
             clearTimeout(this._fallbackTimeout);
         });
         document.addEventListener("visibilitychange", this._handleVisibilityChange);
-        // Tied to the map's own teardown rather than to a caller remembering, the same way
-        // the frontend does it: otherwise the timer revives a map that is already gone, and
-        // the listener keeps the whole graph — and its WebGL context — alive for the
-        // lifetime of the page.
         this._leafletMap.on("unload", () => {
             clearTimeout(this._fallbackTimeout);
             document.removeEventListener("visibilitychange", this._handleVisibilityChange);
@@ -199,6 +224,7 @@ export class TimelineLeafletMap {
     destroy() {
         this._destroyed = true;
         clearTimeout(this._fallbackTimeout);
+        clearInterval(this._tokenInterval);
         document.removeEventListener("visibilitychange", this._handleVisibilityChange);
         this._vectorLayer = null;
         this._leafletMap.remove();

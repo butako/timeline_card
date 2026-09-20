@@ -118,10 +118,8 @@ class TimelineCard extends HTMLElement {
         clearTimeout(this._teardownTimeout);
         this._teardownTimeout = null;
         if (!this._config) return;
-        // disconnectedCallback stops the interval and setConfig is the only other place that
-        // starts one, so without this a card that Home Assistant re-attaches never refreshes.
         this._setupUpdateInterval();
-        // Only after a teardown; the first map is attached by the render pass.
+        // The first render attaches the initial map.
         if (this._rendered && !this._mapView) this._attachMapCard();
     }
 
@@ -132,14 +130,7 @@ class TimelineCard extends HTMLElement {
             this._updateIntervalId = null;
         }
 
-        // ha-map has always done this; the card never has. Without it every replaced card
-        // strands a WebGL context, and browsers cap how many may live at once.
-        //
-        // Deferred by a task, which is the one place this departs from ha-map: Home Assistant
-        // moves cards around the DOM and a move arrives here as a disconnect immediately
-        // followed by a reconnect. Tearing down synchronously would drop and rebuild the
-        // context, and refetch the style, on every move. A view's map is not moved that way,
-        // so ha-map has no such case to handle.
+        // Deferred: a DOM move is a disconnect immediately followed by a reconnect.
         clearTimeout(this._teardownTimeout);
         this._teardownTimeout = setTimeout(() => {
             this._teardownTimeout = null;
@@ -374,6 +365,8 @@ class TimelineCard extends HTMLElement {
             this._mapView = new TimelineLeafletMap(container, this._getHomeZoneCenter(), {
                 mapTileUrl: this._config.map_tile_url,
                 mapAttribution: this._config.map_attribution,
+                fetchMapTilesToken: async () =>
+                    (await this._hass.connection.sendMessagePromise({type: "map_tiles/access_token"})).token,
             });
             this._setDarkMode();
             this._drawMapPaths();
