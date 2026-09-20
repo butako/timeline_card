@@ -49,8 +49,7 @@ export function clearReverseGeocodingQueue() {
 }
 
 export function resolveStaySegments(segments, placeStates, placeNameStates, date, osmApiKey, onUpdate) {
-    // Intervals from the Places v3 place_name child sensor take precedence: the main
-    // sensor's state only holds the (less clean) display-options string in v3.
+    // v3 main sensor state = display-options string; child sensor wins.
     const placeNameIntervals = buildIntervals(placeNameStates, date, placeNameSensorDisplayName);
     const placeIntervals = buildIntervals(placeStates, date, placeDisplayName);
     for (const segment of segments) {
@@ -168,7 +167,6 @@ async function resolveQueuedRequest(request, sessionAtStart) {
 }
 
 function buildIntervals(states, date, displayNameFn) {
-    if (!Array.isArray(states) || states.length === 0) return [];
     const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
     return states.map((state, index) => {
         const next = states[index + 1];
