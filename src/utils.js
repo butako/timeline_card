@@ -78,6 +78,13 @@ export function formatDistance(meters, distanceUnit = "metric") {
     return `${Math.round(meters)} m`;
 }
 
+export function formatSpeed(meters, durationMs, distanceUnit = "metric") {
+    const hours = durationMs / 3600000;
+    if (!Number.isFinite(meters) || !(hours > 0)) return "";
+    const kmh = meters / 1000 / hours;
+    return distanceUnit === "imperial" ? `${Math.round(kmh * 0.621371)} mph` : `${Math.round(kmh)} km/h`;
+}
+
 export function haversineMeters(a, b) {
     const toRad = (deg) => (deg * Math.PI) / 180;
     const r = 6371000;
