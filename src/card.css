@@ -1,11 +1,13 @@
 :host {
   display: block;
+  height: 100%;
   container-type: inline-size;
   container-name: timeline-card;
   font-family: var(--ha-card-header-font-family, "Helvetica Neue", Arial, sans-serif);
 }
 
 ha-card {
+  height: 100%;
   overflow: hidden;
 }
 
@@ -222,6 +224,12 @@ ha-card {
 
 .timeline-content {
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card.panel-fill .timeline-content {
+  height: 100%;
 }
 
 .timeline-section.collapsed {
@@ -270,8 +278,14 @@ ha-card {
 .body {
   padding: 8px 16px 16px;
   max-height: 420px;
+  min-height: 0;
   overflow: auto;
   touch-action: pan-y;
+}
+
+.card.panel-fill .body {
+  flex: 1 1 auto;
+  max-height: none;
 }
 
 .loading,
