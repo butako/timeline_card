@@ -230,3 +230,49 @@ export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+export function findNearestSegmentIndex(points, segmentIndices, latlng) {
+    const target = {lat: latlng.lat, lon: latlng.lng};
+    let best = null;
+    let bestDistance = Infinity;
+    points.forEach((entry, i) => {
+        const distance = haversineMeters(target, toLatLon(entry));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = segmentIndices[i];
+        }
+    });
+    return best;
+}
+
+function isSameCalendarDay(a, b) {
+    return startOfDay(new Date(a)).getTime() === startOfDay(new Date(b)).getTime();
+}
+
+export function getStayLabel(stay) {
+    return escapeHtml(stay.zoneName || stay.placeName || localize("timeline.unknown_location"));
+}
+
+// First and last stay run past the day boundary.
+export function getStayEdgeOptions(segment, index, segments) {
+    const isStay = segment.type === "stay";
+    return {
+        hideStartTime: isStay && index === 0,
+        hideEndTime: isStay && index === segments.length - 1,
+    };
+}
+
+export function buildStayPopupHtml(stay, locale, edgeOptions) {
+    const timeLabel = formatTimeRange(stay.start, stay.end, {locale, ...edgeOptions});
+    const dateLabel = isSameCalendarDay(stay.start, stay.end)
+        ? ""
+        : `<div class="timeline-popup-date">${escapeHtml(formatDate(stay.start, locale))} - ${escapeHtml(formatDate(stay.end, locale))}</div>`;
+
+    return `
+      <div class="timeline-popup">
+        <div class="timeline-popup-place">${getStayLabel(stay)}</div>
+        <div class="timeline-popup-time">${escapeHtml(timeLabel)}</div>
+        ${dateLabel}
+      </div>
+    `;
+}

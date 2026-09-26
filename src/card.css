@@ -219,6 +219,7 @@ ha-card {
   align-items: center;
   column-gap: 12px;
   padding: 12px 0;
+  transition: background-color 1.2s ease-out;
 }
 
 .left-icon {
@@ -399,4 +400,26 @@ ha-card {
   to {
     stroke-dashoffset: -24px;
   }
+}
+
+.entry.map-focus {
+  background-color: color-mix(in srgb, var(--timeline-color, var(--primary-color)) 35%, transparent);
+  border-radius: 8px;
+  transition: background-color 0s;
+}
+
+/* Leaflet popups are white in both themes. */
+.timeline-popup-place {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #212121;
+}
+
+.timeline-popup-time {
+  color: #555555;
+}
+
+.timeline-popup-date {
+  font-size: 0.8rem;
+  color: #777777;
 }
