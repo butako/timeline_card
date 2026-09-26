@@ -1,7 +1,7 @@
 import Leaflet from "leaflet";
 import {maplibreGL} from "@maplibre/maplibre-gl-leaflet";
 import {setRTLTextPlugin} from "maplibre-gl";
-import {findNearestSegmentIndex, getTrackColor} from "./utils.js";
+import {buildStayPopupHtml, findNearestSegmentIndex, getStayEdgeOptions, getTrackColor} from "./utils.js";
 
 const DEFAULT_ZOOM = 13;
 const MAP_MIN_ZOOM = 1;
@@ -92,6 +92,7 @@ export class TimelineLeafletMap {
         this._isTravelHighlightActive = false;
         this._animateHighlightedPath = true;
         this._onSegmentClick = null;
+        this._locale = null;
 
         this.setDarkMode(false);
         requestAnimationFrame(() => this._leafletMap.invalidateSize());
@@ -226,6 +227,10 @@ export class TimelineLeafletMap {
             .catch(() => {
                 // Keep the current style.
             });
+    }
+
+    setLocale(locale) {
+        this._locale = locale;
     }
 
     destroy() {
@@ -369,6 +374,7 @@ export class TimelineLeafletMap {
         const pushStayMarker = (stay, index, iconOptions, zIndexOffset) => {
             const icon = createMarkerIcon({iconName: stay.zoneIcon || "mdi:map-marker", ...iconOptions});
             const marker = this._Leaflet.marker(stay.center, {icon, zIndexOffset});
+            marker.bindPopup(() => buildStayPopupHtml(stay, this._locale, getStayEdgeOptions(stay, index, segmentList)));
             marker.on("click", () => this._onSegmentClick?.(index));
             this._mapLayers.push(marker);
         };

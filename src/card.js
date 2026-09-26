@@ -388,6 +388,7 @@ class TimelineCard extends HTMLElement {
             if (!this._config.hide_current_location) {
                 this._mapView._currentLocations = this._getCurrentEntityLocations();
             }
+            this._mapView.setLocale(this._hass?.locale);
             this._mapView.setDaySegments(tracks, {
                 activeEntityIndex: this._activeEntityIndex,
                 onTrackClick: (entityIndex) => this._setActiveEntityIndex(entityIndex),

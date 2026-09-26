@@ -407,3 +407,19 @@ ha-card {
   border-radius: 8px;
   transition: background-color 0s;
 }
+
+/* Leaflet popups are white in both themes. */
+.timeline-popup-place {
+  font-weight: 600;
+  margin-bottom: 2px;
+  color: #212121;
+}
+
+.timeline-popup-time {
+  color: #555555;
+}
+
+.timeline-popup-date {
+  font-size: 0.8rem;
+  color: #777777;
+}
