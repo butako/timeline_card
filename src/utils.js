@@ -230,3 +230,17 @@ export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+export function findNearestSegmentIndex(points, segmentIndices, latlng) {
+    const target = {lat: latlng.lat, lon: latlng.lng};
+    let best = null;
+    let bestDistance = Infinity;
+    points.forEach((entry, i) => {
+        const distance = haversineMeters(target, toLatLon(entry));
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = segmentIndices[i];
+        }
+    });
+    return best;
+}

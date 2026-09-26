@@ -112,6 +112,7 @@ When multiple entities are configured, the card renders all tracks on the map an
 ## Map interactions
 
 - Hovering a timeline entry (desktop) highlights the matching segment on the map. A highlighted **move** segment animates ("marching ants") to show direction of travel when `animate_highlighted_path` is enabled (default).
+- Clicking a **stay** marker or the selected entity's **route line** scrolls the timeline to the matching entry and briefly flashes it, expanding the list if collapsed. Clicking another entity's route line switches to that entity instead. With `hide_moving`, clicking the route between stays does nothing.
 
 ## Reverse Geocoding
 
