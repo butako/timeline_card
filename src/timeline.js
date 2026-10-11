@@ -1,4 +1,13 @@
-import {capitalizeFirst, escapeHtml, formatDistance, formatDuration, formatTimeRange} from "./utils.js";
+import {
+    capitalizeFirst,
+    escapeHtml,
+    formatDistance,
+    formatDuration,
+    formatSpeed,
+    formatTimeRange,
+    getStayEdgeOptions,
+    getStayLabel,
+} from "./utils.js";
 import {localize} from "./localize/localize.js";
 
 export function renderTimeline(segments, locale, config) {
@@ -25,8 +34,7 @@ export function renderTimeline(segments, locale, config) {
                   iconMap: config.activity_icon_map || {},
                   distanceUnit: config.distance_unit || "metric",
                   hideMoving: Boolean(config.hide_moving),
-                  hideStartTime: index === 0 && segment.type === "stay",
-                  hideEndTime: index === segments.length - 1 && segment.type === "stay",
+                  ...getStayEdgeOptions(segment, index, segments),
               }),
           )
           .join("")}
@@ -47,7 +55,7 @@ function renderSegment(segment, index, options) {
               <div class="line-dot"></div>
             </div>
             <div class="content location">
-              <div class="title">${escapeHtml(segment.zoneName || segment.placeName || localize("timeline.unknown_location"))}</div>
+              <div class="title">${getStayLabel(segment)}</div>
             </div>
             <div class="content time multiline">
               <div class="meta timerange">${formatTimeRange(segment.start, segment.end, options)}</div>
@@ -58,6 +66,7 @@ function renderSegment(segment, index, options) {
     }
 
     if (!options.hideMoving) {
+        const speed = formatSpeed(segment.distanceM, segment.durationMs, options.distanceUnit);
         return `
           <div class="entry move" data-segment-index="${index}" data-segment-type="move">
             <div class="left-icon"></div>
@@ -66,7 +75,7 @@ function renderSegment(segment, index, options) {
             </div>
             <div class="content location travel">
               <ha-icon class="move-icon" icon="${segment.activityIcon || "mdi:chart-line-variant"}"></ha-icon>
-              <div class="title">${escapeHtml(capitalizeFirst(segment.activityName || localize("timeline.moving")))}<span class="meta"> - ${formatDistance(segment.distanceM, options.distanceUnit)}</span></div>
+              <div class="title" title="${escapeHtml(capitalizeFirst(segment.activityName || localize("timeline.moving")))}">${formatDistance(segment.distanceM, options.distanceUnit)}${speed ? ` (${speed})` : ""}</div>
             </div>
             <div class="content time">
               <div class="meta duration">${formatDuration(segment.durationMs)}</div>

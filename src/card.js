@@ -29,6 +29,9 @@ const DEFAULT_CONFIG = {
     max_reasonable_speed_kmh: 300,
     map_appearance: "auto",
     map_height_px: 200,
+    timeline_position: "bottom",
+    timeline_size: 30,
+    pills_position: "below",
     animate_highlighted_path: true,
     map_tile_url: null,
     map_attribution: null,
@@ -56,9 +59,12 @@ class TimelineCard extends HTMLElement {
         this._rendered = false;
         this._touchStart = null;
         this._activeEntityIndex = 0;
+        this._pinnedSegmentIndex = null;
+        this._hoveredSegmentIndex = null;
         this._timelineCollapsed = false;
         this._updateIntervalId = null;
         this._teardownTimeout = null;
+        this._flashTimeout = null;
         this._resetMapFitMode();
         this._addEventListeners();
     }
@@ -74,12 +80,12 @@ class TimelineCard extends HTMLElement {
         }
 
         this._activeEntityIndex = 0;
+        this._clearPinnedSegment();
         this._timelineCollapsed = Boolean(this._config.collapse_timeline);
         this._selectedDate = startOfDay(new Date());
         this._resetMapFitMode();
         this._setDarkMode();
         this._renderEntitySelector(true);
-        this._applyMapHeight();
         if (this._hass) {
             this._ensureDay(this._selectedDate);
         }
@@ -154,6 +160,12 @@ class TimelineCard extends HTMLElement {
         if (!["auto", "light", "dark"].includes(this._config.map_appearance)) {
             throw new Error("map_appearance must be one of 'auto', 'light', or 'dark'");
         }
+        if (!["top", "bottom", "left", "right"].includes(this._config.timeline_position)) {
+            throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
+        }
+        if (!["above", "below"].includes(this._config.pills_position)) {
+            throw new Error("pills_position must be either 'above' or 'below'");
+        }
     }
 
     _setDarkMode() {
@@ -166,10 +178,26 @@ class TimelineCard extends HTMLElement {
         this._mapView?.setDarkMode(darkMode);
     }
 
-    _applyMapHeight() {
-        const mapElement = this.shadowRoot?.getElementById("overview-map");
-        if (!mapElement) return;
-        mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+    _applyPanelHeight() {
+        const parent = this.parentElement;
+        const isPanel = parent?.tagName === "HUI-CARD" && parent.parentElement?.tagName === "HUI-PANEL-VIEW";
+        this.shadowRoot.querySelector(".card").classList.toggle("panel-fill", isPanel);
+        if (!isPanel) return;
+        // hui-card is the one ancestor HA leaves without a height; contain it so the list scrolls.
+        Object.assign(parent.style, {display: "block", height: "100%", contain: "size"});
+    }
+
+    _applyLayoutClasses() {
+        const card = this.shadowRoot?.querySelector(".card");
+        if (!card) return;
+        const {timeline_position, timeline_size, pills_position, map_height_px} = this._config;
+        ["top", "bottom", "left", "right"].forEach((position) =>
+            card.classList.toggle(`timeline-${position}`, position === timeline_position),
+        );
+        card.style.setProperty("--timeline-size", `${Math.min(90, Math.max(10, Number(timeline_size) || 30))}%`);
+        // A cleared editor field leaves null; "nullpx" would still satisfy the var() fallback.
+        card.style.setProperty("--map-height", `${Number(map_height_px) || DEFAULT_CONFIG.map_height_px}px`);
+        this.shadowRoot.getElementById("map-pills-group")?.classList.toggle("pills-above", pills_position === "above");
     }
 
     // Actions
@@ -184,6 +212,7 @@ class TimelineCard extends HTMLElement {
         const next = new Date(this._selectedDate);
         next.setDate(next.getDate() + direction);
         this._selectedDate = startOfDay(next);
+        this._clearPinnedSegment();
         this._resetMapFitMode();
         this._ensureDay(this._selectedDate).then(() => this._render());
     }
@@ -197,6 +226,7 @@ class TimelineCard extends HTMLElement {
     }
 
     _refreshCurrentDay() {
+        this._clearPinnedSegment();
         const key = formatDate(this._selectedDate);
         this._cache.delete(key);
         this._ensureDay(this._selectedDate).then(() => this._render());
@@ -227,6 +257,7 @@ class TimelineCard extends HTMLElement {
     _render() {
         if (!this.shadowRoot) return;
         this._ensureBaseLayout();
+        this._applyLayoutClasses();
 
         const dateKey = formatDate(this._selectedDate);
         const dayData = this._cache.get(dateKey) || {
@@ -246,8 +277,8 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
-        this._applyMapHeight();
 
+        this._applyPanelHeight();
         this._updateMapFitButton();
         this._updateCollapseButtons();
 
@@ -276,18 +307,20 @@ class TimelineCard extends HTMLElement {
           <style>${css}\n${leafletCss}\n${maplibreCss}</style>
           <ha-card>
             <div class="card">
-              <div class="map-wrap">
-                <div id="overview-map"></div>
-                <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
-                <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-              </div>
-              <div class="selector-row" id="selector-row" hidden>
-                <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-                <div id="entity-selector" class="entity-selector"></div>
+              <div class="map-pills-group" id="map-pills-group">
+                <div class="map-wrap">
+                  <div id="overview-map"></div>
+                  <ha-icon-button id="map-fit-mode" class="map-reset" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
+                  <ha-icon-button id="timeline-collapse-map" class="map-reset map-reset-left" data-action="toggle-timeline-collapse" hidden>
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                </div>
+                <div class="selector-row" id="selector-row" hidden>
+                  <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                  <div id="entity-selector" class="entity-selector"></div>
+                </div>
               </div>
               <div id="timeline-section" class="timeline-section">
                 <div class="timeline-content">
@@ -387,14 +420,16 @@ class TimelineCard extends HTMLElement {
             if (!this._config.hide_current_location) {
                 this._mapView._currentLocations = this._getCurrentEntityLocations();
             }
+            this._mapView.setLocale(this._hass?.locale);
             this._mapView.setDaySegments(tracks, {
                 activeEntityIndex: this._activeEntityIndex,
                 onTrackClick: (entityIndex) => this._setActiveEntityIndex(entityIndex),
                 colors: this._config.colors,
                 hideUnselected: this._config.hide_unselected_on_map,
                 animateHighlightedPath: this._config.animate_highlighted_path,
+                onSegmentClick: (segmentIndex) => this._scrollTimelineToSegment(segmentIndex),
             });
-            this._touchStart = null;
+            this._applySegmentHighlight();
 
             this._updateMapFitButton();
             this._fitMapToCurrentMode();
@@ -462,6 +497,7 @@ class TimelineCard extends HTMLElement {
         mapCollapseBtn.setAttribute("label", label);
 
         timelineSection.classList.toggle("collapsed", this._timelineCollapsed);
+        this.shadowRoot.querySelector(".card").classList.toggle("timeline-collapsed", this._timelineCollapsed);
     }
 
     _renderTimelineContent(dayData) {
@@ -536,6 +572,7 @@ class TimelineCard extends HTMLElement {
             return;
         }
         this._activeEntityIndex = index;
+        this._clearPinnedSegment();
         this._renderEntitySelector(true);
         this._render();
     }
@@ -639,6 +676,7 @@ class TimelineCard extends HTMLElement {
             const next = new Date(`${target.value}T00:00:00`);
             if (!Number.isNaN(next.getTime())) {
                 this._selectedDate = startOfDay(next);
+                this._clearPinnedSegment();
                 this._resetMapFitMode();
                 this._ensureDay(this._selectedDate).then(() => this._render());
             }
@@ -664,25 +702,33 @@ class TimelineCard extends HTMLElement {
 
     _handleSegmentHoverStart(segmentIndex) {
         if (!Number.isInteger(segmentIndex)) return;
-        const dayData = this._getCurrentDayData();
-        const track = this._getCurrentTrackDayData(dayData);
-        if (!track || !Array.isArray(track.segments)) return;
-
-        const segment = track.segments[segmentIndex];
-        if (!segment || !this._mapView) return;
-
-        const segments = Array.isArray(track.segments) ? track.segments : [];
-        this._touchStart = null;
-        this._mapView.highlightSegment(segment, segments);
+        this._hoveredSegmentIndex = segmentIndex;
+        this._applySegmentHighlight();
     }
 
     _clearHoverHighlight() {
+        this._hoveredSegmentIndex = null;
+        this._applySegmentHighlight();
+    }
+
+    _applySegmentHighlight() {
         if (!this._mapView) return;
         const dayData = this._getCurrentDayData();
         const track = this._getCurrentTrackDayData(dayData);
         const segments = Array.isArray(track?.segments) ? track.segments : [];
+
         this._touchStart = null;
-        this._mapView.clearHighlight(segments);
+        const segment = segments[this._hoveredSegmentIndex ?? this._pinnedSegmentIndex];
+        if (segment) {
+            this._mapView.highlightSegment(segment, segments);
+        } else {
+            this._mapView.clearHighlight(segments);
+        }
+    }
+
+    _clearPinnedSegment() {
+        this._pinnedSegmentIndex = null;
+        this._hoveredSegmentIndex = null;
     }
 
     _handleSegmentClick(segmentIndex) {
@@ -693,6 +739,17 @@ class TimelineCard extends HTMLElement {
 
         const segment = track.segments[segmentIndex];
         if (!segment) return;
+
+        this._pinnedSegmentIndex = this._pinnedSegmentIndex === segmentIndex ? null : segmentIndex;
+        this._hoveredSegmentIndex = null;
+        this._applySegmentHighlight();
+
+        if (this._pinnedSegmentIndex === null) {
+            this._resetMapFitMode();
+            this._updateMapFitButton();
+            this._fitMapToCurrentMode();
+            return;
+        }
 
         this._mapFitMode = "segment";
         this._updateMapFitButton();
@@ -705,6 +762,39 @@ class TimelineCard extends HTMLElement {
             if (segmentPoints.length < 2) return;
             this._mapView?.fitMap(segmentPoints.map(toLatLon));
         }
+    }
+
+    _scrollTimelineToSegment(segmentIndex) {
+        const body = this.shadowRoot.getElementById("timeline-body");
+        const row = body.querySelector(`.entry[data-segment-index="${segmentIndex}"]`);
+        if (!row) return;
+
+        const scrollToRow = () => {
+            const bodyRect = body.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            const delta = rowRect.top - bodyRect.top - (bodyRect.height - rowRect.height) / 2;
+            body.scrollTo({top: body.scrollTop + delta, behavior: "smooth"});
+        };
+
+        if (this._timelineCollapsed) {
+            this._timelineCollapsed = false;
+            this._updateCollapseButtons();
+            const section = this.shadowRoot.getElementById("timeline-section");
+            // Measure once expanded; the list has no height mid-transition.
+            const onExpanded = (event) => {
+                if (event.target !== section) return;
+                section.removeEventListener("transitionend", onExpanded);
+                scrollToRow();
+            };
+            section.addEventListener("transitionend", onExpanded);
+        } else {
+            scrollToRow();
+        }
+
+        body.querySelector(".entry.map-focus")?.classList.remove("map-focus");
+        row.classList.add("map-focus");
+        clearTimeout(this._flashTimeout);
+        this._flashTimeout = setTimeout(() => row.classList.remove("map-focus"), 1600);
     }
 
     _bindTimelineTouch(body) {
