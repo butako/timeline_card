@@ -389,6 +389,7 @@ ha-card {
   flex-direction: row;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   color: var(--secondary-text-color);
 }
 
@@ -404,6 +405,11 @@ ha-card {
 .entry.move .title {
   margin-left: 10px;
   color: var(--secondary-text-color);
+  font-size: 0.85rem;
+  font-weight: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entry.stay .title {
