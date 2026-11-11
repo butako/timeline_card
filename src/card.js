@@ -161,7 +161,7 @@ class TimelineCard extends HTMLElement {
 
     _applyPanelHeight() {
         const parent = this.parentElement;
-        const isPanel = parent?.tagName === "HUI-CARD" && parent.parentElement?.tagName === "HUI-PANEL-VIEW";
+        const isPanel = parent?.tagName === "HUI-CARD" && parent.getRootNode().host?.tagName === "HUI-PANEL-VIEW";
         this.shadowRoot.querySelector(".card").classList.toggle("panel-fill", isPanel);
         if (!isPanel) return;
         // hui-card is the one ancestor HA leaves without a height; contain it so the list scrolls.
