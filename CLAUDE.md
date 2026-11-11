@@ -82,3 +82,11 @@ Read `src/ha-frontend/README.md` before changing anything map-related.
 If a request is ambiguous, make the smallest reasonable assumption, state it
 in one line, and proceed — don't pad the code with comments explaining the
 assumption instead.
+## Private fork (butako)
+
+- Deploy branch: `private/v2` = upstream release + our commits (map↔timeline click, stay popup,
+  layout options, panel fill, tap-to-pin, move speed). Old v1 fork: tag `private-v1-final`.
+- New upstream release: rebase `private/v2` onto the tag, build, test, deploy. Never let HA's
+  Marketplace update this card; it overwrites the fork with upstream.
+- Deploy: `npm run build`, `gzip -9 -n -c dist/timeline_card.js > dist/timeline_card.js.gz`, scp both to
+  `root@hassio.local:/config/www/community/timeline_card/`, bump `?v=` on the dashboard resource URL.
