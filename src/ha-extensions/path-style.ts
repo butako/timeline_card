@@ -12,6 +12,11 @@ export interface StyledMapPath extends MapPath {
     onClick?(location: MapLatLng): void;
 }
 
+export interface PopupEngine {
+    openPopup(location: MapLatLng, html: string): void;
+    closePopup(): void;
+}
+
 export const animatePathDash = ({ dash, gap }: PathDash, onOffset: (offset: number) => void): (() => void) => {
     const period = dash + gap;
     let last: number | undefined;

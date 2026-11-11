@@ -1,7 +1,19 @@
 import { LeafletMapEngine } from "../ha-frontend/src/common/map/engines/leaflet-map-engine";
-import { animatePathDash, type StyledMapPath } from "./path-style";
+import type { MapLatLng } from "../ha-frontend/src/common/map/map-engine";
+import { animatePathDash, type PopupEngine, type StyledMapPath } from "./path-style";
 
-export class StyledLeafletEngine extends LeafletMapEngine {
+export class StyledLeafletEngine extends LeafletMapEngine implements PopupEngine {
+    public openPopup(location: MapLatLng, html: string): void {
+        this.Leaflet!.popup({ closeButton: false, offset: [0, -4] })
+            .setLatLng(location)
+            .setContent(html)
+            .openOn(this.leafletMap!);
+    }
+
+    public closePopup(): void {
+        this.leafletMap?.closePopup();
+    }
+
     private _drawPath(path: StyledMapPath) {
         const items = super._drawPath(path);
         const map = this.leafletMap!;

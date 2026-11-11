@@ -11,8 +11,8 @@ import type {
 import {deepEqual} from "../ha-frontend/src/common/util/deep-equal";
 import {floatingMarkerFootprint} from "../ha-frontend/src/components/map/ha-entity-marker";
 import {HaMap, type HaMapEntity} from "../ha-frontend/src/components/map/ha-map";
-import type {StyledMapPath} from "./path-style";
-import {findNearestSegmentIndex} from "../utils.js";
+import type {PopupEngine, StyledMapPath} from "./path-style";
+import {buildStayPopupHtml, findNearestSegmentIndex} from "../utils.js";
 
 const pathBorder = (color: string, width: number) => ({color: hexBlend("#000", color, 30), width});
 
@@ -45,6 +45,7 @@ export class TimelineMap extends HaMap {
     private _onTrackClick: (entityIndex: number) => void = () => undefined;
     private _onSegmentClick: (segmentIndex: number) => void = () => undefined;
     private _animateHighlightedPath = false;
+    private _locale: any;
     private _locations: CurrentLocation[] = [];
     private _lastFit?: () => void;
     private _superCreateClusterBubble = this._createClusterBubble;
@@ -62,8 +63,9 @@ export class TimelineMap extends HaMap {
 
     public setDaySegments(
         tracks: any[],
-        {activeEntityIndex, onTrackClick, onSegmentClick, colors, hideUnselected, animateHighlightedPath, currentLocations, live}: any,
+        {activeEntityIndex, onTrackClick, onSegmentClick, colors, hideUnselected, animateHighlightedPath, currentLocations, locale, live}: any,
     ): void {
+        this._locale = locale;
         this._onTrackClick = onTrackClick;
         this._onSegmentClick = onSegmentClick;
         this._animateHighlightedPath = animateHighlightedPath;
@@ -94,6 +96,7 @@ export class TimelineMap extends HaMap {
         if (!live) {
             this._highlightedPath = [];
             this._highlightedStay = null;
+            (this._engine as PopupEngine | undefined)?.closePopup();
         }
         this._drawPaths();
     }
@@ -312,6 +315,11 @@ export class TimelineMap extends HaMap {
         element.style.cursor = "pointer";
         element.addEventListener("click", (ev) => {
             ev.stopPropagation();
+            const stay = this._segments[segmentIndex];
+            (this._engine as unknown as PopupEngine).openPopup(
+                [stay.center.lat, stay.center.lon],
+                buildStayPopupHtml(stay, segmentIndex, this._segments, this._locale),
+            );
             this._onSegmentClick(segmentIndex);
         });
         return element;
@@ -338,6 +346,24 @@ export class TimelineMap extends HaMap {
         css`
             timeline-ha-entity-marker::part(marker) {
                 cursor: pointer;
+            }
+            .timeline-popup-place {
+                font-weight: 600;
+            }
+            .timeline-popup-date {
+                font-size: var(--ha-font-size-xs);
+                opacity: 0.8;
+            }
+            .leaflet-popup-content-wrapper,
+            .leaflet-popup-tip {
+                background: rgba(80, 80, 80, 0.9);
+                color: white;
+                box-shadow: none;
+            }
+            .leaflet-popup-content {
+                margin: 8px;
+                font-size: var(--ha-font-size-s);
+                text-align: center;
             }
             timeline-ha-entity-marker[inactive] {
                 filter: var(--ha-cluster-shadow, drop-shadow(0 1px 3px rgba(0, 0, 0, 0.12))) opacity(0.7);

@@ -1,4 +1,6 @@
-import {capitalizeFirst, escapeHtml, formatDistance, formatDuration, formatTimeRange} from "./utils.js";
+import {
+    capitalizeFirst, escapeHtml, formatDistance, formatDuration, formatTimeRange, getStayEdgeOptions, getStayLabel,
+} from "./utils.js";
 import {localize} from "./localize/localize.js";
 
 export function renderTimeline(segments, locale, config) {
@@ -21,8 +23,7 @@ export function renderTimeline(segments, locale, config) {
       ${entries
         .map(({segment, index}) => renderSegment(segment, index, {
             locale: locale, iconMap: config.activity_icon_map || {}, distanceUnit: config.distance_unit || "metric",
-            hideMoving: Boolean(config.hide_moving), hideStartTime: index === 0 && segment.type === "stay",
-            hideEndTime: index === segments.length - 1 && segment.type === "stay",
+            hideMoving: Boolean(config.hide_moving), ...getStayEdgeOptions(segment, index, segments),
         }),)
         .join("")}
     </div>
@@ -42,7 +43,7 @@ function renderSegment(segment, index, options) {
               <div class="line-dot"></div>
             </div>
             <div class="content location">
-              <div class="title">${escapeHtml(segment.zoneName || segment.placeName || localize("timeline.unknown_location"))}</div>
+              <div class="title">${getStayLabel(segment)}</div>
             </div>
             <div class="content time multiline">
               <div class="meta timerange">${formatTimeRange(segment.start, segment.end, options)}</div>

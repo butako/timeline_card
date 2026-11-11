@@ -390,6 +390,7 @@ class TimelineCard extends HTMLElement {
                 activeEntityIndex: this._activeEntityIndex,
                 onTrackClick: (entityIndex) => this._setActiveEntityIndex(entityIndex),
                 onSegmentClick: (segmentIndex) => this._scrollTimelineToSegment(segmentIndex),
+                locale: this._hass?.locale,
                 colors: this._config.entities.map((entry, index) => getTrackColor(index, entry.color)),
                 hideUnselected: this._config.hide_unselected_on_map,
                 animateHighlightedPath: this._config.animate_highlighted_path,

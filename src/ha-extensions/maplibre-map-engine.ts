@@ -1,10 +1,25 @@
-import type { LayerSpecification, MapLayerMouseEvent } from "maplibre-gl";
+import type { LayerSpecification, MapLayerMouseEvent, Popup } from "maplibre-gl";
+import type { MapLatLng } from "../ha-frontend/src/common/map/map-engine";
 import type { MapPathHandle } from "../ha-frontend/src/common/map/map-engine";
 import { MapLibreMapEngine } from "../ha-frontend/src/common/map/engines/maplibre-map-engine";
-import { animatePathDash, type PathDash, type StyledMapPath } from "./path-style";
+import { animatePathDash, type PathDash, type PopupEngine, type StyledMapPath } from "./path-style";
 
-export class StyledMapLibreEngine extends MapLibreMapEngine {
+export class StyledMapLibreEngine extends MapLibreMapEngine implements PopupEngine {
     private _pathsBeingAdded = new Map<string, StyledMapPath>();
+    private _popup?: Popup;
+
+    public openPopup(location: MapLatLng, html: string): void {
+        this.closePopup();
+        this._popup = new this._maplibre!.Popup({ closeButton: false, offset: 14 })
+            .setLngLat([location[1], location[0]])
+            .setHTML(html)
+            .addTo(this._map!);
+    }
+
+    public closePopup(): void {
+        this._popup?.remove();
+        this._popup = undefined;
+    }
 
     public addPath(path: StyledMapPath): MapPathHandle {
         if (!this._map) {

@@ -164,3 +164,22 @@ export function findNearestSegmentIndex(points, segmentIndices, [lat, lon]) {
     });
     return best;
 }
+
+export function getStayLabel(stay) {
+    return escapeHtml(stay.zoneName || stay.placeName || localize("timeline.unknown_location"));
+}
+
+// First and last stay run past the day boundary.
+export function getStayEdgeOptions(segment, index, segments) {
+    const isStay = segment.type === "stay";
+    return {hideStartTime: isStay && index === 0, hideEndTime: isStay && index === segments.length - 1};
+}
+
+export function buildStayPopupHtml(stay, index, segments, locale) {
+    const timeLabel = formatTimeRange(stay.start, stay.end, {locale, ...getStayEdgeOptions(stay, index, segments)});
+    const spansDays = startOfDay(stay.start).getTime() !== startOfDay(stay.end).getTime();
+    const dateLabel = spansDays
+        ? `<div class="timeline-popup-date">${escapeHtml(formatDate(stay.start, locale))} - ${escapeHtml(formatDate(stay.end, locale))}</div>`
+        : "";
+    return `<div class="timeline-popup-place">${getStayLabel(stay)}</div><div>${escapeHtml(timeLabel)}</div>${dateLabel}`;
+}
