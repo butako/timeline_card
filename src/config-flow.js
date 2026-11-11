@@ -106,6 +106,25 @@ const schema = (hass, defaults) =>
                         name: "",
                         flatten: true,
                         schema: [
+                            {
+                                name: "timeline_position",
+                                selector: {select: {options: ["top", "bottom", "left", "right"], mode: "dropdown"}},
+                            },
+                            {
+                                name: "pills_position",
+                                selector: {select: {options: ["above", "below"], mode: "dropdown"}},
+                            },
+                            {
+                                name: "timeline_size",
+                                selector: {number: {min: 10, max: 90, step: 1, unit_of_measurement: "%", mode: "box"}},
+                            },
+                        ],
+                    },
+                    {
+                        type: "grid",
+                        name: "",
+                        flatten: true,
+                        schema: [
                             {name: "hide_moving", selector: {boolean: {}}},
                             {name: "reverse_timeline_order", selector: {boolean: {}}},
                             {name: "collapse_timeline", selector: {boolean: {}}},

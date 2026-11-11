@@ -18,6 +18,9 @@ const DEFAULT_CONFIG = {
     max_reasonable_speed_kmh: 300,
     theme_mode: "auto",
     map_height_px: 200,
+    timeline_position: "bottom",
+    timeline_size: 30,
+    pills_position: "below",
     default_zoom: 14,
     animate_highlighted_path: true,
     distance_unit: "metric",
@@ -72,7 +75,6 @@ class TimelineCard extends HTMLElement {
         this._mapView?.remove();
         this._mapView = null;
         this._renderEntitySelector(true);
-        this._applyMapHeight();
         if (this._hass) {
             this._ensureDay(this._selectedDate);
         }
@@ -146,12 +148,24 @@ class TimelineCard extends HTMLElement {
         if (!(this._config.default_zoom >= 1 && this._config.default_zoom <= 20)) {
             throw new Error("default_zoom must be a number between 1 and 20");
         }
+        if (!["top", "bottom", "left", "right"].includes(this._config.timeline_position)) {
+            throw new Error("timeline_position must be one of 'top', 'bottom', 'left', or 'right'");
+        }
+        if (!["above", "below"].includes(this._config.pills_position)) {
+            throw new Error("pills_position must be either 'above' or 'below'");
+        }
     }
 
-    _applyMapHeight() {
-        const mapElement = this.shadowRoot?.getElementById("overview-map");
-        if (!mapElement) return;
-        mapElement.style.setProperty("height", `${this._config.map_height_px}px`, "important");
+    _applyLayoutClasses() {
+        const card = this.shadowRoot.querySelector(".card");
+        const {timeline_position, timeline_size, pills_position, map_height_px} = this._config;
+        ["top", "bottom", "left", "right"].forEach((position) =>
+            card.classList.toggle(`timeline-${position}`, position === timeline_position),
+        );
+        card.style.setProperty("--timeline-size", `${Math.min(90, Math.max(10, Number(timeline_size) || 30))}%`);
+        // A cleared editor field leaves null; "nullpx" would still satisfy the var() fallback.
+        card.style.setProperty("--map-height", `${Number(map_height_px) || DEFAULT_CONFIG.map_height_px}px`);
+        this.shadowRoot.getElementById("map-pills-group").classList.toggle("pills-above", pills_position === "above");
     }
 
     // Actions
@@ -236,6 +250,7 @@ class TimelineCard extends HTMLElement {
     _render(live = false) {
         if (!this.shadowRoot) return;
         this._ensureBaseLayout();
+        this._applyLayoutClasses();
 
         const dateKey = formatDate(this._selectedDate);
         const dayData = this._cache.get(dateKey) || {
@@ -250,7 +265,6 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
-        this._applyMapHeight();
 
         this._updateMapFitButton();
         this._updateCollapseButtons();
@@ -276,21 +290,23 @@ class TimelineCard extends HTMLElement {
           <style>${css}</style>
           <ha-card>
             <div class="card">
-              <div class="map-wrap">
-                <div id="overview-map"></div>
-                <div id="map-buttons">
-                  <ha-icon-button id="map-cluster" data-action="toggle-map-cluster" label="Toggle grouping" hidden><ha-icon></ha-icon></ha-icon-button>
-                  <ha-icon-button id="map-fit-mode" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
+              <div class="map-pills-group" id="map-pills-group">
+                <div class="map-wrap">
+                  <div id="overview-map"></div>
+                  <div id="map-buttons">
+                    <ha-icon-button id="map-cluster" data-action="toggle-map-cluster" label="Toggle grouping" hidden><ha-icon></ha-icon></ha-icon-button>
+                    <ha-icon-button id="map-fit-mode" data-action="update-map-fit-mode"><ha-icon></ha-icon></ha-icon-button>
+                  </div>
+                  <ha-icon-button id="timeline-collapse-map" class="map-collapse" data-action="toggle-timeline-collapse" hidden>
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
                 </div>
-                <ha-icon-button id="timeline-collapse-map" class="map-collapse" data-action="toggle-timeline-collapse" hidden>
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-              </div>
-              <div class="selector-row" id="selector-row" hidden>
-                <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
-                  <ha-icon></ha-icon>
-                </ha-icon-button>
-                <div id="entity-selector" class="entity-selector"></div>
+                <div class="selector-row" id="selector-row" hidden>
+                  <ha-icon-button id="timeline-collapse-selector" class="selector-collapse" data-action="toggle-timeline-collapse">
+                    <ha-icon></ha-icon>
+                  </ha-icon-button>
+                  <div id="entity-selector" class="entity-selector"></div>
+                </div>
               </div>
               <div id="timeline-section" class="timeline-section">
                 <div class="timeline-content">
@@ -468,6 +484,7 @@ class TimelineCard extends HTMLElement {
         mapCollapseBtn.setAttribute("label", label);
 
         timelineSection.classList.toggle("collapsed", this._timelineCollapsed);
+        this.shadowRoot.querySelector(".card").classList.toggle("timeline-collapsed", this._timelineCollapsed);
     }
 
     _renderTimelineContent(dayData) {
