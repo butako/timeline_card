@@ -156,6 +156,15 @@ class TimelineCard extends HTMLElement {
         }
     }
 
+    _applyPanelHeight() {
+        const parent = this.parentElement;
+        const isPanel = parent?.tagName === "HUI-CARD" && parent.parentElement?.tagName === "HUI-PANEL-VIEW";
+        this.shadowRoot.querySelector(".card").classList.toggle("panel-fill", isPanel);
+        if (!isPanel) return;
+        // hui-card is the one ancestor HA leaves without a height; contain it so the list scrolls.
+        Object.assign(parent.style, {display: "block", height: "100%", contain: "size"});
+    }
+
     _applyLayoutClasses() {
         const card = this.shadowRoot.querySelector(".card");
         const {timeline_position, timeline_size, pills_position, map_height_px} = this._config;
@@ -265,6 +274,7 @@ class TimelineCard extends HTMLElement {
         this.shadowRoot
             .querySelector("[data-action='next']")
             .toggleAttribute("disabled", this._selectedDate >= today());
+        this._applyPanelHeight();
 
         this._updateMapFitButton();
         this._updateCollapseButtons();
