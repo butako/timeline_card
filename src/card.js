@@ -48,6 +48,7 @@ class TimelineCard extends HTMLElement {
         this._activeEntityIndex = 0;
         this._timelineCollapsed = false;
         this._teardownTimeout = null;
+        this._flashTimeout = null;
         this._resetMapFitMode();
         this._addEventListeners();
     }
@@ -388,6 +389,7 @@ class TimelineCard extends HTMLElement {
             this._mapView.setDaySegments(tracks, {
                 activeEntityIndex: this._activeEntityIndex,
                 onTrackClick: (entityIndex) => this._setActiveEntityIndex(entityIndex),
+                onSegmentClick: (segmentIndex) => this._scrollTimelineToSegment(segmentIndex),
                 colors: this._config.entities.map((entry, index) => getTrackColor(index, entry.color)),
                 hideUnselected: this._config.hide_unselected_on_map,
                 animateHighlightedPath: this._config.animate_highlighted_path,
@@ -682,6 +684,39 @@ class TimelineCard extends HTMLElement {
             if (segmentPoints.length < 2) return;
             this._mapView?.fitTo(segmentPoints.map((point) => point.point));
         }
+    }
+
+    _scrollTimelineToSegment(segmentIndex) {
+        const body = this.shadowRoot.getElementById("timeline-body");
+        const row = body.querySelector(`.entry[data-segment-index="${segmentIndex}"]`);
+        if (!row) return;
+
+        const scrollToRow = () => {
+            const bodyRect = body.getBoundingClientRect();
+            const rowRect = row.getBoundingClientRect();
+            const delta = rowRect.top - bodyRect.top - (bodyRect.height - rowRect.height) / 2;
+            body.scrollTo({top: body.scrollTop + delta, behavior: "smooth"});
+        };
+
+        if (this._timelineCollapsed) {
+            this._timelineCollapsed = false;
+            this._updateCollapseButtons();
+            const section = this.shadowRoot.getElementById("timeline-section");
+            // The list has no height mid-transition.
+            const onExpanded = (event) => {
+                if (event.target !== section) return;
+                section.removeEventListener("transitionend", onExpanded);
+                scrollToRow();
+            };
+            section.addEventListener("transitionend", onExpanded);
+        } else {
+            scrollToRow();
+        }
+
+        body.querySelector(".entry.map-focus")?.classList.remove("map-focus");
+        row.classList.add("map-focus");
+        clearTimeout(this._flashTimeout);
+        this._flashTimeout = setTimeout(() => row.classList.remove("map-focus"), 1600);
     }
 
     _bindTimelineTouch(body) {

@@ -1,4 +1,4 @@
-import type { LayerSpecification } from "maplibre-gl";
+import type { LayerSpecification, MapLayerMouseEvent } from "maplibre-gl";
 import type { MapPathHandle } from "../ha-frontend/src/common/map/map-engine";
 import { MapLibreMapEngine } from "../ha-frontend/src/common/map/engines/maplibre-map-engine";
 import { animatePathDash, type PathDash, type StyledMapPath } from "./path-style";
@@ -19,7 +19,7 @@ export class StyledMapLibreEngine extends MapLibreMapEngine {
         const handle = super.addPath(path);
         this._pathsBeingAdded.delete(lineLayerId);
 
-        const onLineClick = () => path.onClick?.();
+        const onLineClick = (event: MapLayerMouseEvent) => path.onClick?.([event.lngLat.lat, event.lngLat.lng]);
         const onLineEnter = () => {
             map.getCanvas().style.cursor = "pointer";
         };

@@ -144,6 +144,7 @@ entities:
 
 - Hovering a timeline entry (desktop) highlights the matching segment on the map. A highlighted **move** segment animates ("marching ants") to show direction of travel when `animate_highlighted_path` is enabled (default).
 - Clicking another entity's track, or its marker, selects that entity.
+- Clicking a **stay** marker or the selected entity's **route line** scrolls the timeline to the matching entry and briefly flashes it, expanding the list if collapsed. With `hide_moving`, clicking the route between stays does nothing.
 - The buttons under the zoom controls switch the map fit (full path, current location) and toggle marker grouping.
 
 ## Reverse Geocoding

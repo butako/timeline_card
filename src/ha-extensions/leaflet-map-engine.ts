@@ -30,7 +30,7 @@ export class StyledLeafletEngine extends LeafletMapEngine {
             });
             line.addTo(map);
             if (path.onClick) {
-                line.on("click", () => path.onClick!());
+                line.on("click", (event) => path.onClick!([event.latlng.lat, event.latlng.lng]));
             }
         });
         markers.forEach((marker) => marker.bringToFront());

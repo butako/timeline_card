@@ -12,6 +12,7 @@ import {deepEqual} from "../ha-frontend/src/common/util/deep-equal";
 import {floatingMarkerFootprint} from "../ha-frontend/src/components/map/ha-entity-marker";
 import {HaMap, type HaMapEntity} from "../ha-frontend/src/components/map/ha-map";
 import type {StyledMapPath} from "./path-style";
+import {findNearestSegmentIndex} from "../utils.js";
 
 const pathBorder = (color: string, width: number) => ({color: hexBlend("#000", color, 30), width});
 
@@ -19,6 +20,7 @@ interface DayPath {
     entityIndex: number;
     isActive: boolean;
     points: MapLatLng[];
+    segmentIndices: number[];
     color: string;
 }
 
@@ -41,6 +43,7 @@ export class TimelineMap extends HaMap {
     private _highlightedPath: MapLatLng[] = [];
     private _highlightedStay: any = null;
     private _onTrackClick: (entityIndex: number) => void = () => undefined;
+    private _onSegmentClick: (segmentIndex: number) => void = () => undefined;
     private _animateHighlightedPath = false;
     private _locations: CurrentLocation[] = [];
     private _lastFit?: () => void;
@@ -59,21 +62,27 @@ export class TimelineMap extends HaMap {
 
     public setDaySegments(
         tracks: any[],
-        {activeEntityIndex, onTrackClick, colors, hideUnselected, animateHighlightedPath, currentLocations, live}: any,
+        {activeEntityIndex, onTrackClick, onSegmentClick, colors, hideUnselected, animateHighlightedPath, currentLocations, live}: any,
     ): void {
         this._onTrackClick = onTrackClick;
+        this._onSegmentClick = onSegmentClick;
         this._animateHighlightedPath = animateHighlightedPath;
         this._locations = currentLocations;
         this._dayPaths = tracks
-            .map((track, index) => ({
-                entityIndex: index,
-                isActive: index === activeEntityIndex,
-                points: track.segments.flatMap((segment: any) => {
-                    if (segment.type === "stay") return [[segment.center.lat, segment.center.lon]];
-                    return segment.points.map((point: any) => point.point);
-                }),
-                color: colors[index],
-            }))
+            .map((track, index) => {
+                const segmentPoints: MapLatLng[][] = track.segments.map((segment: any) =>
+                    segment.type === "stay"
+                        ? [[segment.center.lat, segment.center.lon]]
+                        : segment.points.map((point: any) => point.point),
+                );
+                return {
+                    entityIndex: index,
+                    isActive: index === activeEntityIndex,
+                    points: segmentPoints.flat(),
+                    segmentIndices: segmentPoints.flatMap((points, segmentIndex) => points.map(() => segmentIndex)),
+                    color: colors[index],
+                };
+            })
             .filter((path) => !hideUnselected || path.isActive);
         this._segments = tracks[activeEntityIndex]?.segments || [];
         this.requestUpdate();
@@ -236,7 +245,9 @@ export class TimelineMap extends HaMap {
             color,
             width: 4,
             border: path.isActive ? pathBorder(color, 7) : undefined,
-            onClick: path.isActive ? undefined : () => this._onTrackClick(path.entityIndex),
+            onClick: path.isActive
+                ? (location) => this._onSegmentClick(findNearestSegmentIndex(path.points, path.segmentIndices, location))
+                : () => this._onTrackClick(path.entityIndex),
             segments: [{points: path.points, opacity: path.isActive ? 1 : 0.8}],
             markers: [],
         };
@@ -249,14 +260,11 @@ export class TimelineMap extends HaMap {
         this._dayHandles = [];
 
         const activeColor = this._activePath?.color ?? "var(--primary-color)";
-        this._segments
-            .filter((segment) => segment.type === "stay")
-            .forEach((stay) => {
-                const element = createStayMarker(stay.zoneIcon, 14, activeColor);
-                this._dayHandles.push(
-                    engine.addMarker(element, [stay.center.lat, stay.center.lon], {size: [22, 22], interactive: false}),
-                );
-            });
+        this._segments.forEach((stay, index) => {
+            if (stay.type !== "stay") return;
+            const element = this._clickableStay(createStayMarker(stay.zoneIcon, 14, activeColor), index);
+            this._dayHandles.push(engine.addMarker(element, [stay.center.lat, stay.center.lon], {size: [22, 22]}));
+        });
 
         if (this._showsDot) {
             this._dayHandles.push(
@@ -290,15 +298,23 @@ export class TimelineMap extends HaMap {
         );
         if (this._highlightedStay) {
             const stay = this._highlightedStay;
-            const element = createStayMarker(stay.zoneIcon, 22, "var(--accent-color)");
+            const element = this._clickableStay(
+                createStayMarker(stay.zoneIcon, 22, "var(--accent-color)"),
+                this._segments.indexOf(stay),
+            );
             this._highlightHandles.push(
-                engine.addMarker(element, [stay.center.lat, stay.center.lon], {
-                    size: [26, 26],
-                    interactive: false,
-                    raised: true
-                }),
+                engine.addMarker(element, [stay.center.lat, stay.center.lon], {size: [26, 26], raised: true}),
             );
         }
+    }
+
+    private _clickableStay(element: HTMLElement, segmentIndex: number): HTMLElement {
+        element.style.cursor = "pointer";
+        element.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            this._onSegmentClick(segmentIndex);
+        });
+        return element;
     }
 
     private _addPath(

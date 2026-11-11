@@ -151,3 +151,16 @@ export function capitalizeFirst(text) {
     if (!text) return "";
     return text.charAt(0).toUpperCase() + text.slice(1);
 }
+
+export function findNearestSegmentIndex(points, segmentIndices, [lat, lon]) {
+    let best = null;
+    let bestDistance = Infinity;
+    points.forEach(([pointLat, pointLon], i) => {
+        const distance = haversineMeters({lat, lon}, {lat: pointLat, lon: pointLon});
+        if (distance < bestDistance) {
+            bestDistance = distance;
+            best = segmentIndices[i];
+        }
+    });
+    return best;
+}

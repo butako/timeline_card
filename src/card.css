@@ -218,6 +218,13 @@ ha-card {
     align-items: center;
     column-gap: 12px;
     padding: 12px 0;
+    transition: background-color 1.2s ease-out;
+}
+
+.entry.map-focus {
+    background-color: color-mix(in srgb, var(--timeline-color, var(--primary-color)) 35%, transparent);
+    border-radius: 8px;
+    transition: background-color 0s;
 }
 
 .left-icon {

@@ -1,4 +1,4 @@
-import type { MapPath } from "../ha-frontend/src/common/map/map-engine";
+import type { MapLatLng, MapPath } from "../ha-frontend/src/common/map/map-engine";
 
 export interface PathDash {
     dash: number;
@@ -9,7 +9,7 @@ export interface StyledMapPath extends MapPath {
     width?: number;
     border?: { color: string; width: number };
     animated?: PathDash;
-    onClick?(): void;
+    onClick?(location: MapLatLng): void;
 }
 
 export const animatePathDash = ({ dash, gap }: PathDash, onOffset: (offset: number) => void): (() => void) => {
