@@ -1,5 +1,6 @@
 import {
-    capitalizeFirst, escapeHtml, formatDistance, formatDuration, formatTimeRange, getStayEdgeOptions, getStayLabel,
+    capitalizeFirst, escapeHtml, formatDistance, formatDuration, formatSpeed, formatTimeRange, getStayEdgeOptions,
+    getStayLabel,
 } from "./utils.js";
 import {localize} from "./localize/localize.js";
 
@@ -54,6 +55,7 @@ function renderSegment(segment, index, options) {
     }
 
     if (!options.hideMoving) {
+        const speed = formatSpeed(segment.distanceM, segment.durationMs, options.distanceUnit);
         return `
           <div class="entry move" data-segment-index="${index}" data-segment-type="move">
             <div class="left-icon"></div>
@@ -62,7 +64,7 @@ function renderSegment(segment, index, options) {
             </div>
             <div class="content location travel">
               <ha-icon class="move-icon" icon="${segment.activityIcon || "mdi:chart-line-variant"}"></ha-icon>
-              <div class="title">${escapeHtml(capitalizeFirst(segment.activityName || localize("timeline.moving")))}<span class="meta"> - ${formatDistance(segment.distanceM, options.distanceUnit)}</span></div>
+              <div class="title" title="${escapeHtml(capitalizeFirst(segment.activityName || localize("timeline.moving")))}">${formatDistance(segment.distanceM, options.distanceUnit)}${speed ? ` (${speed})` : ""}</div>
             </div>
             <div class="content time">
               <div class="meta duration">${formatDuration(segment.durationMs)}</div>
